@@ -1,11 +1,14 @@
 import { Hono } from 'hono'
 import { llm } from './llm'
 
-const app = new Hono()
+export type Env = {
+  GROQ_API_KEY: string
+}
+
+const app = new Hono<{ Bindings: Env }>()
 
 app.post('/', async (c) => {
   const body = await c.req.json()
-  console.log(body)
 
   const answ = await llm.invoke(body.quesion)
 
