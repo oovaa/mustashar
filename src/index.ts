@@ -10,7 +10,7 @@ const app = new Hono<{ Bindings: Env }>()
 app.post('/', async (c) => {
   const body = await c.req.json()
 
-  const answ = await llm.invoke(body.quesion)
+  const answ = await llm.invoke(body.question)
 
   return c.json({ answer: answ.content })
 })
