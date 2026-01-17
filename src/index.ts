@@ -1,18 +1,13 @@
 import { Hono } from 'hono'
-import { llm } from './llm'
+import botService from './botService'
 
 export type Env = {
-  GROQ_API_KEY: string
+  GROQ_API_KEY: string,
+  BOT_TOKEN:string
 }
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.post('/', async (c) => {
-  const body = await c.req.json()
-
-  const answ = await llm.invoke(body.question)
-
-  return c.json({ answer: answ.content })
-})
+app.post('/', botService)
 
 export default app

@@ -13,6 +13,6 @@
     "langchain": "^1.2.8"
   },
   "devDependencies": {
-    "wrangler": "^4.4.0"
+    "wrangler": "^4.59.2"
   }
 }
