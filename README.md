@@ -18,4 +18,8 @@ Pass the `CloudflareBindings` as generics when instantiation `Hono`:
 ```ts
 // src/index.ts
 const app = new Hono<{ Bindings: CloudflareBindings }>()
+
 ```
+
+
+deployed server link https://mustashar.oovaa.workers.dev/
