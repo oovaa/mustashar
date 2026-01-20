@@ -8,6 +8,7 @@ export type Env = {
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.post('/', botService)
+app.get('/check', c=>c.text('Server is healthy !'))
+app.post('/', botService);
 
-export default app
+export default app;
