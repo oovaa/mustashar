@@ -1,9 +1,9 @@
 import { Context } from "hono";
 import { getLLM } from "./llm";
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const botService = async (c: Context) => {
-  const sql = neon(c.env.DATABASE_URL);
+  const sql = postgres(c.env.DATABASE_URL, { ssl: require });
 
   try {
     const update = await c.req.json();
@@ -24,8 +24,12 @@ const botService = async (c: Context) => {
       const updatedSummary = await summarizerLLM.invoke(
         `Update the summary. Old: ${oldSummary}. new message: ${userText}.`,
       );
-      await sql`INSERT INTO user_memories (chat_id, summary) VALUES (${chat_id}, ${updatedSummary}) ON CONFLICT (chat_id) DO UPDATE summary = ${userText}`;
-
+      // @ts-ignore
+      await sql`
+        INSERT INTO user_memories (chat_id, summary) 
+        VALUES (${chat_id}, ${updatedSummary})
+        ON CONFLICT (chat_id) DO UPDATE SET summary = ${update}
+      `;
       // 4. generating the final answer
       const finalAnswer = await assistanceLLM.invoke(
         `- the past messages's summary: ${updatedSummary}\n - the comming user message: ${userText}`,
