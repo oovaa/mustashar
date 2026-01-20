@@ -9,9 +9,9 @@
   "dependencies": {
     "@langchain/core": "^1.1.13",
     "@langchain/groq": "^1.0.3",
+    "@neondatabase/serverless": "^1.0.2",
     "hono": "^4.11.4",
-    "langchain": "^1.2.8",
-    "postgres": "^3.4.8"
+    "langchain": "^1.2.8"
   },
   "devDependencies": {
     "wrangler": "^4.59.2"

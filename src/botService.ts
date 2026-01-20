@@ -1,11 +1,9 @@
 import { Context } from "hono";
 import { getLLM } from "./llm";
-import postgres from "postgres";
+import { neon } from "@neondatabase/serverless";
 
 const botService = async (c: Context) => {
-  const sql = postgres(c.env.DATABASE_URL, {
-    ssl: "prefer",
-  });
+  const sql = neon(c.env.DATABASE_URL);
 
   try {
     const update = await c.req.json();
@@ -28,7 +26,6 @@ const botService = async (c: Context) => {
       );
       const newSummary = updatedSummary.content;
 
-      // @ts-ignore
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
           VALUES (${chat_id}, ${newSummary})
