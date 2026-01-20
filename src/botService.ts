@@ -30,7 +30,7 @@ const botService = async (c: Context) => {
       await sql`
         INSERT INTO user_memories (chat_id, summary) 
         VALUES (${chat_id}, ${newSummary})
-        ON CONFLICT (chat_id) DO UPDATE SET summary = ${update}
+        ON CONFLICT (chat_id) DO UPDATE SET summary = ${newSummary}
       `;
       // 4. generating the final answer
       const finalAnswer = await assistanceLLM.invoke(
