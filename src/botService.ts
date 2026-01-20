@@ -3,7 +3,9 @@ import { getLLM } from "./llm";
 import postgres from "postgres";
 
 const botService = async (c: Context) => {
-  const sql = postgres(c.env.DATABASE_URL, { ssl: "require" });
+  const sql = postgres(c.env.DATABASE_URL, {
+    ssl: "prefer",
+  });
 
   try {
     const update = await c.req.json();
@@ -28,10 +30,10 @@ const botService = async (c: Context) => {
 
       // @ts-ignore
       await sql`
-        INSERT INTO user_memories (chat_id, summary) 
-        VALUES (${chat_id}, ${newSummary})
-        ON CONFLICT (chat_id) DO UPDATE SET summary = ${newSummary}
-      `;
+          INSERT INTO user_memories (chat_id, summary) 
+          VALUES (${chat_id}, ${newSummary})
+          ON CONFLICT (chat_id) DO UPDATE SET summary = ${newSummary}
+        `;
       // 4. generating the final answer
       const finalAnswer = await assistanceLLM.invoke(
         `- the past messages's summary: ${newSummary}\n - the comming user message: ${userText}`,
