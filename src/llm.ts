@@ -1,17 +1,17 @@
 import { ChatGroq } from "@langchain/groq";
 
 // creating the model from chatgroq
-export const getLLM = (apiKey: string) => {
+export const getLLM = (
+  apiKey: string,
+  model: string = "llama-3.3-70b-versatile",
+  temperature:number = 0,
+  maxTokens: number = 600,
+) => {
   return new ChatGroq({
     apiKey: apiKey,
-    model: "llama-3.3-70b-versatile",
-    temperature: 0,
+    model: model,
+    temperature: temperature,
     maxRetries: 2,
+    maxTokens,
   });
 };
-
-// invoking (asking)
-// const ans = await llm.invoke('hi there tell me about RAG in AI')
-
-// the answer is in .content
-// console.log(ans.content)
