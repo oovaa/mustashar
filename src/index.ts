@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import botService from "./botService";
-import { serve } from "@hono/node-server";
 import postgres from "postgres";
 
 export type Env = {
@@ -10,15 +9,16 @@ export type Env = {
 };
 
 const app = new Hono<{ Bindings: Env }>();
-export const sql = postgres(process.env.DATABASE_URL);
-const port = 3000;
+export const sql = postgres(process.env.DATABASE_URL as string);
+export const keys: string[] = JSON.parse(process.env.GROQ_API_KEYS as string);
+const port = 5000;
 
 console.log(`Server is running on port: ${port}`);
 
 app.get("/check", (c) => c.text("Server is healthy !"));
 app.post("/", botService);
 
-serve({
-  fetch: app.fetch,
+export default {
   port,
-});
+  fetch: app.fetch,
+};

@@ -1,15 +1,14 @@
 import { Context } from "hono";
 import { getLLM } from "./llm";
-// import { neon } from "@neondatabase/serverless";
 import { HumanMessage, SystemMessage } from "langchain";
 import fallback from "./fallback";
-import { sql } from ".";
+import { keys, sql } from ".";
 
 const botService = async (c: Context) => {
-  // const sql = neon(c.env.DATABASE_URL);
-  const keys: string[] = JSON.parse(c.env.GROQ_API_KEYS);
   let key = keys[0];
   const update = await c.req.json();
+  console.log(process.env);
+  
 
   let loopTimes = 0;
   while (loopTimes < keys.length) {

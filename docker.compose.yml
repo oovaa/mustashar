@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:latest
+    restart: always
+    environments:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+volumes:
+  pgdata:
