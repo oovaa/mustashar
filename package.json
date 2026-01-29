@@ -4,12 +4,17 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "test-rag": "npx tsx test-rag.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.7",
     "@langchain/core": "^1.1.13",
     "@langchain/groq": "^1.0.3",
+    "@lancedb/lancedb": "^0.16.0",
     "@neondatabase/serverless": "^1.0.2",
+    "@xenova/transformers": "^2.6.2",
+    "dotenv": "^16.4.7",
     "hono": "^4.11.4",
     "langchain": "^1.2.8"
   },
