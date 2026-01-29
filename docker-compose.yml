@@ -2,8 +2,8 @@ services:
   db:
     image: postgres:latest
     restart: always
-    environments:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - pgdata:/var/lib/postgresql/data
   app:
