@@ -1,11 +1,12 @@
 import { Context } from "hono";
 import { getLLM } from "./llm";
-import { neon } from "@neondatabase/serverless";
+// import { neon } from "@neondatabase/serverless";
 import { HumanMessage, SystemMessage } from "langchain";
 import fallback from "./fallback";
+import { sql } from ".";
 
 const botService = async (c: Context) => {
-  const sql = neon(c.env.DATABASE_URL);
+  // const sql = neon(c.env.DATABASE_URL);
   const keys: string[] = JSON.parse(c.env.GROQ_API_KEYS);
   let key = keys[0];
   const update = await c.req.json();
@@ -22,7 +23,7 @@ const botService = async (c: Context) => {
 
         const assistanceLLM = getLLM(
           key,
-          "llama-3.1-8b-instant", // 2 options: llama-3.1-8b-instant: Cheapest, openai/gpt-oss-20b: Better, not much Cheaper
+          "llama-3.1-8b-instant", // i found 2 options: llama-3.1-8b-instant: Cheapest, openai/gpt-oss-20b: Better, not much Cheaper
           0.5,
         );
 
@@ -44,6 +45,7 @@ const botService = async (c: Context) => {
           ),
         ]);
 
+        // @ts-ignore
         await sql`
             INSERT INTO user_memories (chat_id, summary) 
             VALUES (${chat_id}, ${updatedSummary.content})
