@@ -73,23 +73,30 @@ Then use `CloudflareBindings` as generics when instantiating Hono:
 
 ```ts
 // src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+const app = new Hono<{ Bindings: CloudflareBindings }>();
 ```
 
 ## API Endpoints
 
 ### Health Check
+
 ```
 GET /check
 ```
 
 ### Ask Question
+
 ```
-POST /api/ask
+POST /
 Content-Type: application/json
 
 {
-  "question": "ما هي حقوق الموظف في القانون السوداني؟"
+  "message": {
+    "chat": {
+      "id": "Your_telegram_id (like: 03948798)"
+    },
+    "text": "من أنت ؟ "
+  }
 }
 ```
 
