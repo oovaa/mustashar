@@ -138,3 +138,9 @@ npm run deploy
 - **User Memory**: PostgreSQL
 - **LLM**: Groq API (Llama models)
 - **Embeddings**: HuggingFace Inference API (multilingual-e5-small)
+
+
+
+deployed API 
+
+https://mustashar-delta.vercel.app/
