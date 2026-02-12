@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@huggingface/inference": "^4.13.12",
     "@langchain/community": "^1.1.14",
     "@langchain/core": "^1.1.22",
     "@langchain/groq": "^1.0.3",

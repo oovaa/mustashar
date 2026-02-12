@@ -17,4 +17,4 @@ app.get('/check', (c) => c.text('Server is healthy !'))
 // Telegram bot webhook
 app.post('/', botService)
 
-export default app
+export default app;
