@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: mustashar_admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./mustashar_pgdata:/var/lib/postgresql/data
     # DO NOT map 5432 to host ports. 
     # This keeps the DB invisible to the internet.
     networks:
@@ -33,4 +33,4 @@ networks:
     driver: bridge
 
 volumes:
-  pgdata:
+  mustashar_pgdata:
