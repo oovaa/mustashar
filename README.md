@@ -10,6 +10,10 @@ A Telegram bot and web API that provides legal information using Retrieval-Augme
 - **Arabic Support**: Specialized for Arabic legal text processing
 - **Memory System**: Uses PostgreSQL to maintain conversation summaries
 
+## Documentation
+
+- **[RAG System Documentation](RAG.md)** - Detailed documentation for the Retrieval-Augmented Generation components
+
 ## Setup
 
 ### Prerequisites
