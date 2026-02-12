@@ -4,7 +4,12 @@ import { loadDocsFromFolder } from './chunker'
 
 const vectorStore = new FaissStore(embeddings, {})
 
-await vectorStore.addDocuments(await loadDocsFromFolder())
+const docs = await loadDocsFromFolder()
+
+console.log('docs are loaded')
+
+await vectorStore.addDocuments(docs)
+
+console.log('done now saving')
 
 await vectorStore.save('./vdb/')
-
