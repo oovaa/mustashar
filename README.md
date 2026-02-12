@@ -1,13 +1,14 @@
 # Mustashar
 
-A Telegram bot and web API that provides legal information using Retrieval-Augmented Generation (RAG) technology. The system uses Arabic legal documents to answer questions about Sudanese labor law and related topics.
+A Telegram bot and web API that provides legal information using Retrieval-Augmented Generation (RAG) technology. The system uses Arabic legal documents to answer questions about Sudanese law and related topics.
 
 ## Features
 
-- **Telegram Bot**: Interactive chatbot for legal questions
-- **Web API**: REST API endpoint for programmatic access
-- **RAG System**: Uses vector search with LanceDB and Groq LLM for accurate answers
+- **Telegram Bot**: Interactive chatbot for legal questions with memory
+- **Web API**: REST API endpoint for Telegram webhook
+- **RAG System**: Prepared vector search with HNSWLib and Groq LLM for accurate answers (currently in development)
 - **Arabic Support**: Specialized for Arabic legal text processing
+- **Memory System**: Uses PostgreSQL to maintain conversation summaries
 
 ## Setup
 
@@ -16,11 +17,14 @@ A Telegram bot and web API that provides legal information using Retrieval-Augme
 - Node.js (v18 or higher)
 - npm or bun
 - Cloudflare Workers account (for deployment)
+- PostgreSQL database (for user memory)
 
 ### Installation
 
 ```bash
 npm install
+# or
+bun install
 ```
 
 ### Environment Variables
@@ -30,7 +34,7 @@ Create a `.env` file in the root directory with the following variables:
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 BOT_TOKEN=your_telegram_bot_token_here
-DATABASE_URL=./rag/vectordb
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ```
 
 For Cloudflare Workers deployment, add these to your `.dev.vars` file:
@@ -38,12 +42,20 @@ For Cloudflare Workers deployment, add these to your `.dev.vars` file:
 ```env
 GROQ_API_KEY="your_groq_api_key_here"
 BOT_TOKEN=your_telegram_bot_token_here
-DATABASE_URL="./rag/vectordb"
+DATABASE_URL="postgresql://user:password@host:port/dbname"
 ```
 
-### Database Setup
+### Vector Database Setup
 
-The system uses LanceDB for vector storage. The database should be located at the path specified in `DATABASE_URL`. Make sure the vector database is properly indexed with Arabic legal documents.
+The system uses HNSWLib for vector storage. The vector database is stored locally in the `./vdb/` directory and should be pre-indexed with Arabic legal documents.
+
+To build the vector database:
+
+```bash
+bun run src/rag/vdb.ts
+```
+
+This will load documents from `./docs/`, chunk them, and create the vector index.
 
 ## Development
 
@@ -51,15 +63,17 @@ The system uses LanceDB for vector storage. The database should be located at th
 
 ```bash
 npm run dev
+# or
+wrangler dev
 ```
 
-### Testing the RAG System
+### Testing the Retriever
 
 ```bash
-npm run test-rag
+bun run src/rag/retriver.ts
 ```
 
-This will test the RAG functionality with sample Arabic questions.
+This will test the vector retrieval with sample queries.
 
 ### Type Generation
 
@@ -84,7 +98,7 @@ const app = new Hono<{ Bindings: CloudflareBindings }>();
 GET /check
 ```
 
-### Ask Question
+### Telegram Webhook
 
 ```
 POST /
@@ -93,12 +107,14 @@ Content-Type: application/json
 {
   "message": {
     "chat": {
-      "id": "Your_telegram_id (like: 03948798)"
+      "id": "123456789"
     },
-    "text": "من أنت ؟ "
+    "text": "ما هو القانون الخاص بالعمل في السودان؟"
   }
 }
 ```
+
+The bot will process the message, update user memory, and respond via Telegram.
 
 ## Deployment
 
@@ -110,11 +126,11 @@ npm run deploy
 
 **Deployed URL**: https://mustashar.oovaa.workers.dev/
 
-
 ## Architecture
 
 - **Frontend**: Telegram Bot API
 - **Backend**: Hono.js on Cloudflare Workers
-- **Database**: LanceDB for vector storage
+- **Vector Database**: HNSWLib (file-based)
+- **User Memory**: PostgreSQL
 - **LLM**: Groq API (Llama models)
-- **Embeddings**: Xenova Transformers (local, multilingual-e5-small)
+- **Embeddings**: HuggingFace Inference API (multilingual-e5-small)
