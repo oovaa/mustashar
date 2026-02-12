@@ -98,5 +98,3 @@ async function findFiles(dir: string, extensions: string[]): Promise<string[]> {
 
   return files
 }
-
-console.log(await loadDocsFromFolder())

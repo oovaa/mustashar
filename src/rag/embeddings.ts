@@ -1,8 +1,7 @@
-import { VoyageEmbeddings } from '@langchain/community/embeddings/voyage'
+import { HuggingFaceInferenceEmbeddings } from '@langchain/community/embeddings/hf'
 
-export const embeddings = new VoyageEmbeddings({
-  apiKey: 'pa-dEbiEQ9BSlDw5GKYYnKSTDAQ5hd36lFkSOWMMPCYKmz', // In Node.js defaults to process.env.VOYAGEAI_API_KEY
-  modelName: 'voyage-4-large',
+export const embeddings = new HuggingFaceInferenceEmbeddings({
+  apiKey: process.env.HF_API_KEY, // Defaults to process.env.HUGGINGFACEHUB_API_KEY
+  model: 'Omartificial-Intelligence-Space/GATE-AraBert-v1', // Defaults to `BAAI/bge-base-en-v1.5` if not provided
+  provider: 'hf-inference',
 })
-
-// console.log(await embeddings.embedQuery('omar'))
