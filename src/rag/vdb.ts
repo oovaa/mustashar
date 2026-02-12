@@ -1,8 +1,8 @@
-import { FaissStore } from '@langchain/community/vectorstores/faiss'
+import { HNSWLib } from '@langchain/community/vectorstores/hnswlib'
 import { embeddings } from './embeddings'
 import { loadDocsFromFolder } from './chunker'
 
-const vectorStore = new FaissStore(embeddings, {})
+const vectorStore = await HNSWLib.fromDocuments([], embeddings)
 
 const docs = await loadDocsFromFolder()
 
