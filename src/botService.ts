@@ -5,7 +5,7 @@ import { HumanMessage, SystemMessage } from "langchain";
 import { answer } from "./rag/chain";
 
 const botService = async (c: Context) => {
-  const sql = postgres(c.env.DATABASE_URL, { ssl: false });
+  const sql = postgres(c.env?.DATABASE_URL || process.env.DATABASE_URL, { ssl: false });
 
   try {
     const key: string = c.env.GROQ_API_KEY;

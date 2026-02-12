@@ -1,2 +1,4 @@
-node_modules/
+mustashar_pgdata
+node_modules
+.git
 .env
