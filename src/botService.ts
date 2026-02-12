@@ -8,7 +8,7 @@ const botService = async (c: Context) => {
   const sql = postgres(c.env.DATABASE_URL, { ssl: false });
 
   try {
-    const key: string = JSON.parse(c.env.GROQ_API_KEY);
+    const key: string = c.env.GROQ_API_KEY;
     const update = await c.req.json();
     const chat_id = update.message?.chat.id.toString();
     const userText = update.message?.text;
