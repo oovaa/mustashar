@@ -66,7 +66,7 @@ const botService = async (req: Request, res: Response) => {
           body: JSON.stringify({ chat_id, text: finalAnswer.content }),
         },
       )
-      res.send('Ok')
+      res.send({ answer: finalAnswer })
     } catch (err: any) {
       console.error('Error processing update:', err)
       res.json({ 'error ': err })
