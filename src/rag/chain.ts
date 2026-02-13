@@ -4,7 +4,6 @@ import { ChatPromptTemplate } from '@langchain/core/prompts'
 
 const llm = getLLM('', 'llama-3.3-70b-versatile', 0.5)
 
-
 export async function answer(question: string, summary?: string) {
   // --- Step 1: Generate Standalone Question ---
   // We use a structured prompt to ensure the LLM extracts the core legal intent.
@@ -84,11 +83,15 @@ export async function answer(question: string, summary?: string) {
   return result
 }
 
-// Test
-const ans  = await answer(
-  "السلام عليكم .. بسأل انا رفعت دعوه نفقه زوجيه وبنوه ، الحكم طلع لصالحي، زوجي عمل استئناف وقبل يطلع حكم الاستئناف أجر شقه ورفع دعوى طاعة ، حاليا حكم الاستئناف طلع ولغى الحكم الأول ، علما بأنو نحن لينا عشره شهور، منها  خمسه شهور فقط ادانا نفقه مؤقته كان حكم بيها القاضي 150الف شهريا فقط وعندي بنتين ، بسأل لو حكمو ليهو بالطاعه كده ح ارجع وحقوقنا تضيع ولا الحل شنو؟",
-  "المحتوى السابق : مرحباً أسمي فاطمة"
-);
+// // Test
+// const ans = await answer(
+//   `مؤجرين وقبل مانتم سنة في البيت صاحب البيت بلغنا قبل شهر انو من الشهر الجاي مطالبين ب زيادة وانا بلغتو برفضي للزيادة الا بعد نكمل سنه في البيت
+// مع العلم اننا صلحنا الحوش مع الجيران كان في أماكن فاتحه ..
+// ونحن بنينا لينا زيادة مباني
+// ونحن كلمناه من البداية عايزين ايجار طويل المدى
+// عشان كدا خسرنا فيهو وزدنا فيهو
+// الكلام ده كلو شفهي بدون عقد ايجار
+// ارجو الافادة`,
+// )
 
-console.log(ans.content);
-
+// console.log(ans.content)
