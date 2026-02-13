@@ -1,22 +1,17 @@
-import { Hono } from "hono";
-import { serve } from "@hono/node-server"; // or use Bun.serve
-import botService from "./botService";
-import "dotenv/config";
+import 'dotenv/config'
+import express from 'express'
+import botService from './botService'
 
-const app = new Hono();
+const app = express()
+app.use(express.json())
 
-// Instead of a Worker environment, we use process.env
-app.post("/webhook", async (c) => {
-  // Map process.env to the 'c.env' structure your code expects
-  c.env = process.env;
-  return await botService(c);
-});
+app.post('/webhook', botService)
 
-app.get("/check", (c) => c.text("Server is healthy !"));
+app.get('/check', (req, res) => {
+  res.send('Server is healthy !')
+})
 
-console.log("Bot is running on port 3000");
-
-export default {
-  fetch: app.fetch,
-  port: 3000,
-};
+const port = 3000
+app.listen(port, () => {
+  console.log(`Bot is running on port ${port}`)
+})

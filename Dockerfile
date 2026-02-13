@@ -10,7 +10,7 @@ RUN bun install
 
 COPY . .
 
-# Expose the port your Hono app will run on
+# Expose the port your Express app will run on
 EXPOSE 3000
 
 CMD ["bun", "src/index.ts"]
