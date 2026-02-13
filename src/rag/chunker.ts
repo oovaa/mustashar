@@ -10,8 +10,8 @@ export async function loadDocsFromFolder(
 ): Promise<Document[]> {
   const docs: Document[] = []
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 800,
-    chunkOverlap: 0,
+    chunkSize: 900,
+    chunkOverlap:100,
   })
 
   // Recursively find all .pdf, .txt, .md files
