@@ -10,7 +10,7 @@ export async function loadDocsFromFolder(
 ): Promise<Document[]> {
   const docs: Document[] = []
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 900,
+    chunkSize: 2000,
     chunkOverlap:0,
   })
 
