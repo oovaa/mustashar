@@ -3,4 +3,4 @@ import { embeddings } from './embeddings'
 
 const vdb = await HNSWLib.load('./vdb/', embeddings)
 
-export const retriver = vdb.asRetriever()
+export const retriver = vdb.asRetriever({ k: 8 })
