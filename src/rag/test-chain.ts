@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { answer } from './rag/chain.js'
+import { answer } from './chain'
 
 const run = async () => {
   const res = await answer('ما هو القانون الخاص بالخلع في السودان؟')

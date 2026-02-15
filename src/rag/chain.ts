@@ -71,7 +71,6 @@ export async function answer(question: string, summary?: string) {
      STEP 3: Generate Answer
      =============================== */
 
-
   const answerPrompt = ChatPromptTemplate.fromMessages([
     [
       'system',
@@ -121,10 +120,3 @@ export async function answer(question: string, summary?: string) {
 
   return result
 }
-
-
-
-answer("hi there")
-
-//  لا يوجد سؤال قانوني للتحويل.
-//  أهلاً بك، كيف يمكنني مساعدتك قانونياً اليوم؟

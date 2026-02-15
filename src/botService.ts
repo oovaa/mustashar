@@ -38,17 +38,25 @@ const botService = async (req: Request, res: Response) => {
 
       // 3. Updating summary
       const updatedSummary = await summarizerLLM.invoke([
-        new SystemMessage(`- You are a memory compressor...`),
+        new SystemMessage(`You are a memory compressor for a legal chatbot. Your task is to maintain a concise summary of the user's conversation history.
+
+Instructions:
+- Keep the summary under 800 characters
+- Focus on key legal topics discussed
+- Include important facts or questions
+- Update the summary with new information from the current message
+- If this is the first message, create a new summary
+
+Output only the updated summary, no additional text.`),
         new HumanMessage(
           `Current summary: ${oldSummary}. new message: ${userText}`,
         ),
       ])
 
-      // @ts-ignore
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
-          VALUES (${chat_id}, ${updatedSummary.content})
-          ON CONFLICT (chat_id) DO UPDATE SET summary = ${updatedSummary.content}
+          VALUES (${chat_id}, ${String(updatedSummary.content)})
+          ON CONFLICT (chat_id) DO UPDATE SET summary = ${String(updatedSummary.content)}
         `
 
       // 4. Calling the chain
@@ -69,11 +77,13 @@ const botService = async (req: Request, res: Response) => {
       res.send({ answer: finalAnswer.content })
     } catch (err: any) {
       console.error('Error processing update:', err)
-      res.json({ 'error ': err })
+      res.json({
+        error: 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.',
+      })
     }
   } catch (error) {
     console.log(error)
-    res.json({ 'error ': error })
+    res.json({ error: 'حدث خطأ داخلي في الخادم.' })
   }
 }
 

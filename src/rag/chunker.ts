@@ -11,7 +11,7 @@ export async function loadDocsFromFolder(
   const docs: Document[] = []
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1500,
-    chunkOverlap:0,
+    chunkOverlap: 200,
   })
 
   // Recursively find all .pdf, .txt, .md files
