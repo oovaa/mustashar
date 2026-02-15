@@ -90,7 +90,7 @@ Output only the updated summary, no additional text.`),
       
       // Check if it's a rate limit error
       const MAX_ERROR_MESSAGE_LENGTH = 1000
-      const errorMsg = err?.message?.toString() || ''
+      const errorMsg = err?.message || ''
       const errorMessageLower = errorMsg.length <= MAX_ERROR_MESSAGE_LENGTH 
         ? errorMsg.toLowerCase() 
         : errorMsg.substring(0, MAX_ERROR_MESSAGE_LENGTH).toLowerCase()
