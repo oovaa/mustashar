@@ -11,12 +11,12 @@ export const getLLM = (
     apiKey: apiKey || process.env.GROQ_API_KEY,
     model: model,
     temperature: temperature,
-    maxRetries: 2,
+    maxRetries: 0, // Disable internal retries to fail fast and trigger fallback
     callbacks: [
       {
         handleLLMError: (err: any) => {
           console.error(
-            `LLM Error on model ${model}:`,
+            `Primary LLM Error on model ${model}:`,
             JSON.stringify(err, null, 2),
           )
         },
@@ -30,7 +30,22 @@ export const getLLM = (
     apiKey: apiKey || process.env.GROQ_API_KEY,
     model: fallbackModel,
     temperature: temperature,
-    maxRetries: 2,
+    maxRetries: 0,
+    callbacks: [
+      {
+        handleLLMError: (err: any) => {
+          console.error(
+            `Fallback LLM Error on model ${fallbackModel}:`,
+            JSON.stringify(err, null, 2),
+          )
+        },
+      },
+      {
+        handleLLMStart: () => {
+          console.log(`Starting Fallback LLM with model: ${fallbackModel}`)
+        },
+      },
+    ],
   })
 
   return primary.withFallbacks({
