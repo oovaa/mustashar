@@ -122,7 +122,7 @@ export async function answer(question: string, summary?: string) {
   return result
 }
 
-answer('hi there')
+// answer('hi there')
 
 // Generated Search Query: لا يوجد سؤال قانوني للتحويل.
 // Retrieved Chunks: 8
