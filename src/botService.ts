@@ -40,6 +40,8 @@ const botService = async (req: Request, res: Response) => {
           SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
         `
       const oldSummary = result[0]?.summary || 'No history found'
+      console.log('User Question:', userText)
+      console.log('Old Summary:', oldSummary)
 
       // 3. Updating summary
       const updatedSummary = await summarizerLLM.invoke([
@@ -62,6 +64,7 @@ Output only the updated summary, no additional text.`),
         'Summarization Model Used:',
         updatedSummary.response_metadata?.model_name,
       )
+      console.log('Updated Summary:', String(updatedSummary.content))
 
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
