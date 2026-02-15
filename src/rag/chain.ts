@@ -1,86 +1,130 @@
-import { getLLM } from "../llm";
-import { retriver } from "./retriver";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import 'dotenv/config'
+import { getLLM } from '../llm'
+import { retriver } from './retriver'
+import { ChatPromptTemplate } from '@langchain/core/prompts'
 
-const llm = getLLM("", "llama-3.3-70b-versatile", 0.5);
+const llm = getLLM('', 'llama-3.3-70b-versatile', 0.5, 'openai/gpt-oss-120b')
 
 export async function answer(question: string, summary?: string) {
-  // --- Step 1: Generate Standalone Question ---
-  // We use a structured prompt to ensure the LLM extracts the core legal intent.
+  /* ===============================
+     STEP 1: Standalone Search Query
+     =============================== */
+
   const standalonePrompt = ChatPromptTemplate.fromMessages([
     [
-      "system",
-      `You are an expert legal search assistant. 
-    Analyze the user's input, which may be a long narrative or specific scenario.
-    Your task is to formulate a standalone search query that captures the core legal questions.
-    
-    Rules:
-    1. Remove specific personal details (names, exact dates, specific amounts).
-    2. Focus on the legal concepts (e.g., "Alimony appeal effects", "Obedience judgment consequences").
-    3. Keep the query in the same language as the user's input.
-    4. Return ONLY the string.
-    `,
+      'system',
+      `
+أنت مساعد بحث قانوني متخصص في القوانين السودانية.
+
+مهمتك:
+تحويل سؤال المستخدم (حتى لو كان قصة طويلة أو بلهجة عامية)
+إلى عبارة بحث قانونية مختصرة وواضحة.
+
+قواعد:
+1. استخرج المفاهيم القانونية الأساسية فقط.
+2. احذف التفاصيل الشخصية (أسماء، دول، تواريخ دقيقة).
+3. استخدم مصطلحات قانونية عامة (طلاق، نفقة، هجر، حضانة).
+4. اكتب الاستعلام باللغة العربية.
+5. لا تكتب جملة كاملة، فقط عبارة بحث.
+6. ممنوع كتابة عبارات مثل "لا توجد معلومات".
+
+أمثلة صحيحة:
+- النفقة على الأولاد في حالة الطلاق
+- هجر الزوج وأثره على النفقة
+- تقدير نفقة الأطفال في القانون السوداني
+
+أعد فقط عبارة البحث.
+      `,
     ],
-    ["human", `SUMMARY: {summary} \n QUESTION: {question}`],
-  ]);
+    [
+      'human',
+      `
+سؤال المستخدم:
+{question}
+      `,
+    ],
+  ])
 
-  const standaloneChain = standalonePrompt.pipe(llm);
+  const standaloneChain = standalonePrompt.pipe(llm)
 
-  const stand_alone = await standaloneChain.invoke({
-    question: question,
-    summary: summary,
-  });
+  const standAloneResult = await standaloneChain.invoke({
+    question,
+  })
 
-  console.log("Generated Search Query:", stand_alone.content);
+  const standAloneQuery = String(standAloneResult.content).trim()
+  console.log('Generated Search Query:', standAloneQuery)
 
-  // --- Step 2: Retrieve Context ---
-  const chunks = await retriver.invoke(stand_alone.content as string);
+  /* ===============================
+     STEP 2: Retrieve Legal Context
+     =============================== */
 
-  // (Optional) formatting chunks to string if your retriever returns objects
-  const contextString = JSON.stringify(chunks);
+  const chunks = await retriver.invoke(standAloneQuery)
 
-  // --- Step 3: Generate Answer ---
-  // We give strict "Grounding" instructions to prevent hallucination.
+  const contextString =
+    chunks && chunks.length > 0
+      ? chunks.map((x: any) => x.pageContent).join('\n\n')
+      : ''
+
+  console.log('Retrieved Chunks:', chunks?.length ?? 0)
+
+  /* ===============================
+     STEP 3: Generate Answer
+     =============================== */
+
   const answerPrompt = ChatPromptTemplate.fromMessages([
     [
-      "system",
-      `You are a helpful and precise legal assistant.
-    Answer the user's question based STRICTLY on the provided context below.
-    
-    Instructions:
-    1. Respond in the same language as the user (Arabic).
-    2. Do not use outside knowledge. If the answer is not in the context, say: "I cannot find the answer in the provided documents."
-    3. Cite your sources by referring to the specific context chunks used.
-    4. Be empathetic but professional.
-    
+      'system',
+      `أنت المستشار القانوني الأولي المتخصص في القانون السوداني.
+
+    آلية التعامل مع النصوص المزودة (Context):
+    1. **التصفية الذكية**: اقرأ النصوص القانونية في (Context).
+    2. **الاستبعاد والتركيز**: تجاهل غير المرتبط وركز على المواد الدقيقة.
+
+    قواعد الرد:
+    - إذا كان سؤال المستخدم عاماً أو عبارة عن "تحية"، رد بلباقة وود (مثلاً: أهلاً بك، كيف يمكنني مساعدتك قانونياً اليوم؟).
+    - في حالة الرد القانوني: ابدأ بتنويه: "هذا الرد للتوعية القانونية فقط ولا يغني عن استشارة محامي".
+    - اذكر (اسم القانون + رقم المادة) بدقة.
+    - إذا لم تجد مادة صلة، قل: "المواد القانونية المتوفرة حالياً لا تغطي هذا الاستفسار بدقة".
+
+    مهمتك: 
+    تقديم "إسعاف قانوني" مبسط ومركز. إذا كان السؤال خارج النطاق القانوني، كن ودوداً ومرحب. مع تجنب حشو الرد بمواد غير متعلقةاً.
+
     Context:
     {context}`,
     ],
     [
-      "human",
-      `Conversation History: {summary}
-      User Question: {question}
-    
-    Refined Search Query Used: {stand_alone_question}`,
-    ],
-  ]);
+      'human',
+      `
+سجل المحادثة السابق:
+{summary}
 
-  const answerChain = answerPrompt.pipe(llm);
+سؤال المستخدم:
+{question}
+
+استعلام البحث المستخدم:
+{standAloneQuery}
+      `,
+    ],
+  ])
+
+  const answerChain = answerPrompt.pipe(llm)
 
   const result = await answerChain.invoke({
-    question: question,
+    question,
+    summary: summary ?? '',
     context: contextString,
-    stand_alone_question: stand_alone.content,
-    summary: summary,
-  });
+    standAloneQuery,
+  })
 
-  console.log(result.content);
+  console.log('Answer Model Used:', result.response_metadata.model)
+  console.log('FINAL ANSWER:\n', result.content)
 
-  return result;
+  return result
 }
 
-// Test
-// await answer(
-//   "السلام عليكم .. بسأل انا رفعت دعوه نفقه زوجيه وبنوه ، الحكم طلع لصالحي، زوجي عمل استئناف وقبل يطلع حكم الاستئناف أجر شقه ورفع دعوى طاعة ، حاليا حكم الاستئناف طلع ولغى الحكم الأول ، علما بأنو نحن لينا عشره شهور، منها  خمسه شهور فقط ادانا نفقه مؤقته كان حكم بيها القاضي 150الف شهريا فقط وعندي بنتين ، بسأل لو حكمو ليهو بالطاعه كده ح ارجع وحقوقنا تضيع ولا الحل شنو؟",
-//   "المحتوى السابق : مرحباً أسمي فاطمة"
-// );
+// answer('hi there')
+
+// Generated Search Query: لا يوجد سؤال قانوني للتحويل.
+// Retrieved Chunks: 8
+// FINAL ANSWER:
+//  أهلاً بك، كيف يمكنني مساعدتك قانونياً اليوم؟

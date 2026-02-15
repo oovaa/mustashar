@@ -1,76 +1,100 @@
-import { Context } from "hono";
-import { getLLM } from "./llm";
-import postgres from "postgres"; // 1. Use postgres.js
-import { HumanMessage, SystemMessage } from "langchain";
-import { answer } from "./rag/chain";
+import { Request, Response } from 'express'
+import { getLLM } from './llm'
+import postgres from 'postgres' // 1. Use postgres.js
+import { HumanMessage, SystemMessage } from 'langchain'
+import { answer } from './rag/chain'
 
-const botService = async (c: Context) => {
-  const sql = postgres(c.env.DATABASE_URL, { ssl: false });
+const sql = postgres(process.env.DATABASE_URL!, { ssl: false })
 
+const botService = async (req: Request, res: Response) => {
   try {
-    const key: string = JSON.parse(c.env.GROQ_API_KEY);
-    const update = await c.req.json();
-    const chat_id = update.message?.chat.id.toString();
-    const userText = update.message?.text;
+    const key: string = process.env.GROQ_API_KEY!
+    const update = req.body
+    const chat_id = update.message?.chat.id.toString()
+    const userText = update.message?.text
 
-    if (!chat_id || !userText) return c.text("Ok");
+    if (!chat_id || !userText) {
+      res.send('Ok')
+      return
+    }
 
     await sql`
     CREATE TABLE IF NOT EXISTS user_memories (
       chat_id TEXT PRIMARY KEY,
       summary TEXT,
       updated_at TIMESTAMP DEFAULT NOW()
-    )`;
+    )`
 
-    console.log("Table check/creation complete.");
+    console.log('Table check/creation complete.')
 
     try {
-      const summarizerLLM = getLLM(key, "llama-3.1-8b-instant", 0);
+      const summarizerLLM = getLLM(
+        key,
+        'llama-3.1-8b-instant',
+        0,
+        'openai/gpt-oss-20b',
+      )
 
       // 2. Getting the stored summary
       const result = await sql`
           SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
-        `;
-      const oldSummary = result[0]?.summary || "No history found";
+        `
+      const oldSummary = result[0]?.summary || 'No history found'
 
       // 3. Updating summary
       const updatedSummary = await summarizerLLM.invoke([
-        new SystemMessage(`- You are a memory compressor...`),
-        new HumanMessage(
-          `Current summary: ${oldSummary}. new message: ${userText}`
-        ),
-      ]);
+        new SystemMessage(`You are a memory compressor for a legal chatbot. Your task is to maintain a concise summary of the user's conversation history.
 
-      // @ts-ignore
+Instructions:
+- Keep the summary under 800 characters
+- Focus on key legal topics discussed
+- Include important facts or questions
+- Update the summary with new information from the current message
+- If this is the first message, create a new summary
+
+Output only the updated summary, no additional text.`),
+        new HumanMessage(
+          `Current summary: ${oldSummary}. new message: ${userText}`,
+        ),
+      ])
+
+      console.log(
+        'Summarization Model Used:',
+        updatedSummary.response_metadata?.model_name,
+      )
+
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
-          VALUES (${chat_id}, ${updatedSummary.content})
-          ON CONFLICT (chat_id) DO UPDATE SET summary = ${updatedSummary.content}
-        `;
+          VALUES (${chat_id}, ${String(updatedSummary.content)})
+          ON CONFLICT (chat_id) DO UPDATE SET summary = ${String(updatedSummary.content)}
+        `
 
       // 4. Calling the chain
       const finalAnswer = await answer(
         userText,
-        updatedSummary.content as string
-      );
+        updatedSummary.content as string,
+      )
 
       // 5. Telegram fetch
       await fetch(
-        `https://api.telegram.org/bot${c.env.BOT_TOKEN}/sendMessage`,
+        `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id, text: finalAnswer.content }),
-        }
-      );
+        },
+      )
+      res.send({ answer: finalAnswer.content })
     } catch (err: any) {
-      console.error("Error processing update:", err);
+      console.error('Error processing update:', err)
+      res.json({
+        error: 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.',
+      })
     }
-  } finally {
-    await sql.end(); // 6. ensure connection closes
+  } catch (error) {
+    console.log(error)
+    res.json({ error: 'حدث خطأ داخلي في الخادم.' })
   }
+}
 
-  return c.text("Ok");
-};
-
-export default botService;
+export default botService

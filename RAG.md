@@ -22,7 +22,7 @@ The RAG system consists of four main components:
 **Features**:
 - Supports PDF and text files (.txt, .md)
 - Recursive directory traversal
-- Configurable chunk size (800 characters) with no overlap
+- Configurable chunk size (1500 characters) with 200 character overlap
 - Metadata preservation (source file, page numbers for PDFs)
 
 **Usage**:
@@ -82,7 +82,7 @@ bun run src/rag/vdb.ts
 
 **Features**:
 - Loads pre-built HNSWLib index
-- Creates a retriever with default similarity search
+- Creates a retriever with top-5 similarity search
 - Returns relevant document chunks for queries
 
 **Usage**:
