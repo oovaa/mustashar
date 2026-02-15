@@ -3,7 +3,7 @@ import { getLLM } from '../llm'
 import { retriver } from './retriver'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
 
-const llm = getLLM('', 'llama-3.3-70b-versatile', 0.5)
+const llm = getLLM('', 'llama-3.3-70b-versatile', 0.5, 'openai/gpt-oss-120b')
 
 export async function answer(question: string, summary?: string) {
   /* ===============================
@@ -116,7 +116,15 @@ export async function answer(question: string, summary?: string) {
     standAloneQuery,
   })
 
+  console.log('Answer Model Used:', result.response_metadata.model)
   console.log('FINAL ANSWER:\n', result.content)
 
   return result
 }
+
+answer('hi there')
+
+// Generated Search Query: لا يوجد سؤال قانوني للتحويل.
+// Retrieved Chunks: 8
+// FINAL ANSWER:
+//  أهلاً بك، كيف يمكنني مساعدتك قانونياً اليوم؟

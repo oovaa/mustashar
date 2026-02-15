@@ -28,7 +28,12 @@ const botService = async (req: Request, res: Response) => {
     console.log('Table check/creation complete.')
 
     try {
-      const summarizerLLM = getLLM(key, 'llama-3.1-8b-instant', 0)
+      const summarizerLLM = getLLM(
+        key,
+        'llama-3.1-8b-instant',
+        0,
+        'openai/gpt-oss-20b',
+      )
 
       // 2. Getting the stored summary
       const result = await sql`
@@ -52,6 +57,11 @@ Output only the updated summary, no additional text.`),
           `Current summary: ${oldSummary}. new message: ${userText}`,
         ),
       ])
+
+      console.log(
+        'Summarization Model Used:',
+        updatedSummary.response_metadata?.model_name,
+      )
 
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
