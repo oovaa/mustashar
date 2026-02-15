@@ -1,21 +1,21 @@
-import { Request, Response } from 'express'
-import { getLLM } from './llm'
-import postgres from 'postgres' // 1. Use postgres.js
-import { HumanMessage, SystemMessage } from 'langchain'
-import { answer } from './rag/chain'
+import { Request, Response } from "express";
+import { getLLM } from "./llm";
+import postgres from "postgres"; // 1. Use postgres.js
+import { HumanMessage, SystemMessage } from "langchain";
+import { answer } from "./rag/chain";
 
-const sql = postgres(process.env.DATABASE_URL!, { ssl: false })
+const sql = postgres(process.env.DATABASE_URL!, { ssl: false });
 
 const botService = async (req: Request, res: Response) => {
   try {
-    const key: string = process.env.GROQ_API_KEY!
-    const update = req.body
-    const chat_id = update.message?.chat.id.toString()
-    const userText = update.message?.text
+    const key: string = process.env.GROQ_API_KEY!;
+    const update = req.body;
+    const chat_id = update.message?.chat.id.toString();
+    const userText = update.message?.text;
 
     if (!chat_id || !userText) {
-      res.send('Ok')
-      return
+      res.send("Ok");
+      return;
     }
 
     await sql`
@@ -23,23 +23,23 @@ const botService = async (req: Request, res: Response) => {
       chat_id TEXT PRIMARY KEY,
       summary TEXT,
       updated_at TIMESTAMP DEFAULT NOW()
-    )`
+    )`;
 
-    console.log('Table check/creation complete.')
+    console.log("Table check/creation complete.");
 
     try {
       const summarizerLLM = getLLM(
         key,
-        'llama-3.1-8b-instant',
+        "llama-3.1-8b-instant",
         0,
-        'openai/gpt-oss-20b',
-      )
+        "openai/gpt-oss-20b"
+      );
 
       // 2. Getting the stored summary
       const result = await sql`
           SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
-        `
-      const oldSummary = result[0]?.summary || 'No history found'
+        `;
+      const oldSummary = result[0]?.summary || "No history found";
 
       // 3. Updating summary
       const updatedSummary = await summarizerLLM.invoke([
@@ -54,47 +54,51 @@ Instructions:
 
 Output only the updated summary, no additional text.`),
         new HumanMessage(
-          `Current summary: ${oldSummary}. new message: ${userText}`,
+          `Current summary: ${oldSummary}. new message: ${userText}`
         ),
-      ])
+      ]);
 
       console.log(
-        'Summarization Model Used:',
-        updatedSummary.response_metadata?.model_name,
-      )
+        "Summarization Model Used:",
+        updatedSummary.response_metadata?.model_name
+      );
 
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
           VALUES (${chat_id}, ${String(updatedSummary.content)})
-          ON CONFLICT (chat_id) DO UPDATE SET summary = ${String(updatedSummary.content)}
-        `
+          ON CONFLICT (chat_id) DO UPDATE SET summary = ${String(
+            updatedSummary.content
+          )}
+        `;
+
+      console.log("Updated Summary Content:", updatedSummary.content);
 
       // 4. Calling the chain
       const finalAnswer = await answer(
         userText,
-        updatedSummary.content as string,
-      )
+        String(updatedSummary.content)
+      );
 
       // 5. Telegram fetch
       await fetch(
         `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chat_id, text: finalAnswer.content }),
-        },
-      )
-      res.send({ answer: finalAnswer.content })
+        }
+      );
+      res.send({ answer: finalAnswer.content });
     } catch (err: any) {
-      console.error('Error processing update:', err)
+      console.error("Error processing update:", err);
       res.json({
-        error: 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.',
-      })
+        error: "حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.",
+      });
     }
   } catch (error) {
-    console.log(error)
-    res.json({ error: 'حدث خطأ داخلي في الخادم.' })
+    console.log(error);
+    res.json({ error: "حدث خطأ داخلي في الخادم." });
   }
-}
+};
 
-export default botService
+export default botService;
