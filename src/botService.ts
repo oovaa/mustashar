@@ -89,7 +89,8 @@ Output only the updated summary, no additional text.`),
       console.error('Error processing update:', err)
       
       // Check if it's a rate limit error
-      const errorMessageLower = err?.message?.toLowerCase() || ''
+      const errorMsg = err?.message?.toString() || ''
+      const errorMessageLower = errorMsg.length < 1000 ? errorMsg.toLowerCase() : ''
       const isRateLimit = errorMessageLower.includes('rate limit') ||
                          errorMessageLower.includes('rate_limit') ||
                          err?.status === 429 ||
@@ -100,7 +101,7 @@ Output only the updated summary, no additional text.`),
         ? 'عذراً، لقد وصلنا إلى الحد الأقصى لعدد الطلبات. يرجى المحاولة مرة أخرى بعد قليل.'
         : 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.'
       
-      // Send error message to Telegram
+      // Send error message to Telegram (chat_id is guaranteed to be defined here)
       try {
         await fetch(
           `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
