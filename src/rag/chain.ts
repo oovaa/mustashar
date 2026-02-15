@@ -3,7 +3,8 @@ import { getLLM } from '../llm'
 import { retriver } from './retriver'
 import { ChatPromptTemplate } from '@langchain/core/prompts'
 
-const llm = getLLM('', 'llama-3.3-70b-versatile', 0.5, 'openai/gpt-oss-120b')
+const key = process.env.GROQ_API_KEY || ''
+const llm = getLLM(key, 'llama-3.3-70b-versatile', 0.5, 'openai/gpt-oss-120b')
 
 export async function answer(question: string, summary?: string) {
   /* ===============================
@@ -106,7 +107,7 @@ export async function answer(question: string, summary?: string) {
 
   const result = await answerChain.invoke({
     question,
-    summary: summary ?? '',
+    summary: summary || 'No history found',
     context: contextString,
     standAloneQuery,
   })
