@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: mustashar_admin
       POSTGRES_PASSWORD: somepass
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     volumes:
       - ./mustashar_pgdata:/var/lib/postgresql/data
     # DO NOT map 5432 to host ports. 
