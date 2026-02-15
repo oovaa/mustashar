@@ -89,8 +89,12 @@ Output only the updated summary, no additional text.`),
       console.error('Error processing update:', err)
       
       // Check if it's a rate limit error
+      const MAX_ERROR_MESSAGE_LENGTH = 1000
       const errorMsg = err?.message?.toString() || ''
-      const errorMessageLower = errorMsg.length < 1000 ? errorMsg.toLowerCase() : ''
+      const errorMessageLower = errorMsg.length <= MAX_ERROR_MESSAGE_LENGTH 
+        ? errorMsg.toLowerCase() 
+        : errorMsg.substring(0, MAX_ERROR_MESSAGE_LENGTH).toLowerCase()
+      
       const isRateLimit = errorMessageLower.includes('rate limit') ||
                          errorMessageLower.includes('rate_limit') ||
                          err?.status === 429 ||
