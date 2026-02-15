@@ -40,6 +40,8 @@ const botService = async (req: Request, res: Response) => {
           SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
         `
       const oldSummary = result[0]?.summary || 'No history found'
+      console.log('User Question:', userText)
+      console.log('Old Summary:', oldSummary)
 
       // 3. Updating summary
       const updatedSummary = await summarizerLLM.invoke([
@@ -62,6 +64,7 @@ Output only the updated summary, no additional text.`),
         'Summarization Model Used:',
         updatedSummary.response_metadata?.model_name,
       )
+      console.log('Updated Summary:', String(updatedSummary.content))
 
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
@@ -87,9 +90,39 @@ Output only the updated summary, no additional text.`),
       res.send({ answer: finalAnswer.content })
     } catch (err: any) {
       console.error('Error processing update:', err)
-      res.json({
-        error: 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.',
-      })
+      
+      // Check if it's a rate limit error
+      const MAX_ERROR_MESSAGE_LENGTH = 1000
+      const errorMsg = err?.message || ''
+      const errorMessageLower = errorMsg.length <= MAX_ERROR_MESSAGE_LENGTH 
+        ? errorMsg.toLowerCase() 
+        : errorMsg.substring(0, MAX_ERROR_MESSAGE_LENGTH).toLowerCase()
+      
+      const isRateLimit = errorMessageLower.includes('rate limit') ||
+                         errorMessageLower.includes('rate_limit') ||
+                         err?.status === 429 ||
+                         err?.statusCode === 429 ||
+                         err?.code === 'rate_limit_exceeded'
+      
+      const errorMessage = isRateLimit
+        ? 'عذراً، لقد وصلنا إلى الحد الأقصى لعدد الطلبات. يرجى المحاولة مرة أخرى بعد قليل.'
+        : 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.'
+      
+      // Send error message to Telegram (chat_id is guaranteed to be defined here)
+      try {
+        await fetch(
+          `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id, text: errorMessage }),
+          },
+        )
+      } catch (fetchError) {
+        console.error('Failed to send error message to Telegram:', fetchError)
+      }
+      
+      res.json({ error: errorMessage })
     }
   } catch (error) {
     console.log(error)

@@ -9,6 +9,8 @@ A Telegram bot and web API that provides legal information using Retrieval-Augme
 - **RAG System**: Vector search with HNSWLib and Groq LLM for accurate answers
 - **Arabic Support**: Specialized for Arabic legal text processing
 - **Memory System**: Uses PostgreSQL to maintain conversation summaries
+- **Error Handling**: Rate limit detection with user-friendly Arabic error messages
+- **Enhanced Logging**: Comprehensive logging for debugging and monitoring
 - **Docker Support**: Easy deployment with Docker Compose
 
 ## Documentation
@@ -129,3 +131,40 @@ npm run deploy
 - **LLM**: Groq API (Llama models)
 - **Embeddings**: HuggingFace Inference API (Arabic BERT model)
 - **Containerization**: Docker & Docker Compose
+
+## Error Handling
+
+The bot includes robust error handling with fallback mechanisms:
+
+### Rate Limit Handling
+
+When both primary and fallback LLM models hit rate limits, users receive a clear Arabic error message:
+
+```
+عذراً، لقد وصلنا إلى الحد الأقصى لعدد الطلبات. يرجى المحاولة مرة أخرى بعد قليل.
+```
+*"Sorry, we have reached the maximum number of requests. Please try again later."*
+
+The system uses fallback model chains:
+- **Summarizer**: `llama-3.1-8b-instant` → `openai/gpt-oss-20b`
+- **Answer Generator**: `llama-3.3-70b-versatile` → `openai/gpt-oss-120b`
+
+Rate limit detection checks:
+- Error messages containing "rate limit" or "rate_limit"
+- HTTP status code 429
+- Error code `rate_limit_exceeded`
+
+### Logging
+
+The system provides comprehensive logging for debugging and monitoring:
+
+- **User Questions**: Logs all incoming user queries
+- **Conversation Summaries**: Logs both old and updated conversation summaries
+- **Model Usage**: Tracks which LLM models are being used for each request
+- **Errors**: Detailed error logging with error messages and stack traces
+
+This helps with:
+- Debugging issues in production
+- Monitoring model performance and usage
+- Understanding user conversation patterns
+- Tracking rate limit occurrences
