@@ -87,9 +87,29 @@ Output only the updated summary, no additional text.`),
       res.send({ answer: finalAnswer.content })
     } catch (err: any) {
       console.error('Error processing update:', err)
-      res.json({
-        error: 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.',
-      })
+      
+      // Check if it's a rate limit error
+      const isRateLimit = err?.message?.toLowerCase().includes('rate limit') ||
+                         err?.message?.toLowerCase().includes('rate_limit') ||
+                         err?.status === 429 ||
+                         err?.statusCode === 429 ||
+                         err?.code === 'rate_limit_exceeded'
+      
+      const errorMessage = isRateLimit
+        ? 'عذراً، لقد وصلنا إلى الحد الأقصى لعدد الطلبات. يرجى المحاولة مرة أخرى بعد قليل.'
+        : 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.'
+      
+      // Send error message to Telegram
+      await fetch(
+        `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, text: errorMessage }),
+        },
+      )
+      
+      res.json({ error: errorMessage })
     }
   } catch (error) {
     console.log(error)
