@@ -1,14 +1,18 @@
-import 'dotenv/config'
-import { getLLM } from '../llm'
-import { retriver } from './retriver'
-import { ChatPromptTemplate } from '@langchain/core/prompts'
+import "dotenv/config";
+import { getLLM } from "../llm";
+import { retriver } from "./retriver";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
 
-const llm = getLLM('', 'llama-3.3-70b-versatile', 0.5, 'openai/gpt-oss-120b')
+const key = process.env.GROQ_API_KEY || "";
+const llm = getLLM(key, "llama-3.3-70b-versatile", 0.5, "openai/gpt-oss-120b");
 
 export async function answer(question: string, summary?: string) {
+  const safeSummary = summary || "No history found";
+
   /* ===============================
      STEP 1: Standalone Search Query
-     =============================== */ const standalonePrompt =
+     =============================== */ 
+     const standalonePrompt =
     ChatPromptTemplate.fromMessages([
       [
         'system',
@@ -27,27 +31,28 @@ export async function answer(question: string, summary?: string) {
       ['human', `الملخص السابق: {summary} \n سؤال المستخدم: {question}`],
     ])
 
-  const standaloneChain = standalonePrompt.pipe(llm)
+  const standaloneChain = standalonePrompt.pipe(llm);
 
   const standAloneResult = await standaloneChain.invoke({
     question,
-  })
+    summary: safeSummary, // Pass it even if not used, for robustness
+  });
 
-  const standAloneQuery = String(standAloneResult.content).trim()
-  console.log('Generated Search Query:', standAloneQuery)
+  const standAloneQuery = String(standAloneResult.content).trim();
+  console.log("Generated Search Query:", standAloneQuery);
 
   /* ===============================
      STEP 2: Retrieve Legal Context
      =============================== */
 
-  const chunks = await retriver.invoke(standAloneQuery)
+  const chunks = await retriver.invoke(standAloneQuery);
 
   const contextString =
     chunks && chunks.length > 0
-      ? chunks.map((x: any) => x.pageContent).join('\n\n')
-      : ''
+      ? chunks.map((x: any) => x.pageContent).join("\n\n")
+      : "";
 
-  console.log('Retrieved Chunks:', chunks?.length ?? 0)
+  console.log("Retrieved Chunks:", chunks?.length ?? 0);
 
   /* ===============================
      STEP 3: Generate Answer
@@ -55,7 +60,7 @@ export async function answer(question: string, summary?: string) {
 
   const answerPrompt = ChatPromptTemplate.fromMessages([
     [
-      'system',
+      "system",
       `أنت المستشار القانوني الأولي المتخصص في القانون السوداني.
 
     آلية التعامل مع النصوص المزودة (Context):
@@ -75,7 +80,7 @@ export async function answer(question: string, summary?: string) {
     {context}`,
     ],
     [
-      'human',
+      "human",
       `
 سجل المحادثة السابق:
 {summary}
@@ -87,21 +92,21 @@ export async function answer(question: string, summary?: string) {
 {standAloneQuery}
       `,
     ],
-  ])
+  ]);
 
-  const answerChain = answerPrompt.pipe(llm)
+  const answerChain = answerPrompt.pipe(llm);
 
   const result = await answerChain.invoke({
     question,
-    summary: summary ?? '',
+    summary: safeSummary,
     context: contextString,
     standAloneQuery,
-  })
+  });
 
-  console.log('Answer Model Used:', result.response_metadata.model)
-  console.log('FINAL ANSWER:\n', result.content)
+  console.log("Answer Model Used:", result.response_metadata.model);
+  console.log("FINAL ANSWER:\n", result.content);
 
-  return result
+  return result;
 }
 
 // answer('hi there')
