@@ -17,6 +17,26 @@ const botService = async (req: Request, res: Response) => {
       res.send("Ok");
       return;
     }
+    if (chat_id && userText === "/clear") {
+      try {
+        await sql`UPDATE user_memories SET summary = 'No history found', updated_at = NOW() WHERE chat_id = ${chat_id}`;
+        await fetch(
+          `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id,
+              text: "تم مسح الذاكرة بنجاح، سأبدأ الآن معك صفحة جديدة ✅",
+            }),
+          },
+        );
+        return;
+      } catch (err) {
+        console.error("could not be able to clear the chat :", err);
+        throw err;
+      }
+    }
 
     await sql`
     CREATE TABLE IF NOT EXISTS user_memories (
@@ -32,7 +52,7 @@ const botService = async (req: Request, res: Response) => {
         key,
         "llama-3.1-8b-instant",
         0,
-        "openai/gpt-oss-20b"
+        "openai/gpt-oss-20b",
       );
 
       // 2. Getting the stored summary
@@ -54,20 +74,20 @@ Instructions:
 
 Output only the updated summary, no additional text.`),
         new HumanMessage(
-          `Current summary: ${oldSummary}. new message: ${userText}`
+          `Current summary: ${oldSummary}. new message: ${userText}`,
         ),
       ]);
 
       console.log(
         "Summarization Model Used:",
-        updatedSummary.response_metadata?.model_name
+        updatedSummary.response_metadata?.model_name,
       );
 
       await sql`
           INSERT INTO user_memories (chat_id, summary) 
           VALUES (${chat_id}, ${String(updatedSummary.content)})
           ON CONFLICT (chat_id) DO UPDATE SET summary = ${String(
-            updatedSummary.content
+            updatedSummary.content,
           )}
         `;
 
@@ -76,7 +96,7 @@ Output only the updated summary, no additional text.`),
       // 4. Calling the chain
       const finalAnswer = await answer(
         userText,
-        String(updatedSummary.content)
+        String(updatedSummary.content),
       );
 
       // 5. Telegram fetch
@@ -86,7 +106,7 @@ Output only the updated summary, no additional text.`),
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chat_id, text: finalAnswer.content }),
-        }
+        },
       );
       res.send({ answer: finalAnswer.content });
     } catch (err: any) {
