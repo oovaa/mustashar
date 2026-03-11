@@ -21,9 +21,15 @@ dotenv.config()
 // command-r7b-12-2024
 // command-a-translate-08-2025
 // command-a-vision-07-2025
-// command-r-plus-08-2024	
+// command-r-plus-08-2024
+
+// together
+// Qwen/Qwen3.5-397B-A17B
+// moonshotai/Kimi-K2.5
+// zai-org/GLM-5
+// MiniMaxAI/MiniMax-M2.5
 const agent_answer = createAgent({
-  model: 'cohere:command-r-plus-08-2024',
+  model: 'together:MiniMaxAI/MiniMax-M2.5',
   tools: [],
 })
 
