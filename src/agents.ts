@@ -1,12 +1,29 @@
 import { createAgent } from 'langchain'
 
+import dotenv from 'dotenv'
+
+dotenv.config()
+
 // google-genai
 // gemini-2.5-flash
 // gemma-3-27b-it
 // gemma-3n-e4b-it
 // gemma-3n-e2b-it
+
+// groq
+// groq:llama-3.1-8b-instant
+// llama-3.3-70b-versatile
+// openai/gpt-oss-120b
+// openai/gpt-oss-20b
+
+// cohere
+// cohere:command-a-03-2025
+// command-r7b-12-2024
+// command-a-translate-08-2025
+// command-a-vision-07-2025
+// command-r-plus-08-2024	
 const agent_answer = createAgent({
-  model: 'google-genai:gemini-3-flash',
+  model: 'cohere:command-r-plus-08-2024',
   tools: [],
 })
 
