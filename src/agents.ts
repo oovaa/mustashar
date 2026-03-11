@@ -1,7 +1,12 @@
 import { createAgent } from 'langchain'
 
+// google-genai
+// gemini-2.5-flash
+// gemma-3-27b-it
+// gemma-3n-e4b-it
+// gemma-3n-e2b-it
 const agent_answer = createAgent({
-  model: 'google-genai:gemini-2.5-pro',
+  model: 'google-genai:gemini-3-flash',
   tools: [],
 })
 
@@ -16,6 +21,25 @@ const agent_answer = createAgent({
 // })
 
 console.log(await agent_answer.invoke({ messages: 'hi there' }))
+
+// const API_KEY = process.env.GEMINI_API_KEY; // Ensure your key is set in your environment
+
+// async function listModels() {
+//   try {
+//     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
+//     const data = await response.json();
+
+//     data.models.forEach(model => {
+//       console.log(`Model Name: ${model.name}`);
+//       console.log(`Display Name: ${model.displayName}`);
+//       console.log(`Supported Methods: ${model.supportedGenerationMethods.join(', ')}\n`);
+//     });
+//   } catch (error) {
+//     console.error("Failed to fetch models:", error);
+//   }
+// }
+
+// listModels();
 
 /**
  * 
