@@ -11,13 +11,13 @@ dotenv.config()
 // gemma-3n-e2b-it
 
 // groq
-// groq:llama-3.1-8b-instant
+// llama-3.1-8b-instant
 // llama-3.3-70b-versatile
 // openai/gpt-oss-120b
 // openai/gpt-oss-20b
 
 // cohere
-// cohere:command-a-03-2025
+// command-a-03-2025
 // command-r7b-12-2024
 // command-a-translate-08-2025
 // command-a-vision-07-2025
@@ -33,36 +33,17 @@ const agent_answer = createAgent({
   tools: [],
 })
 
-// const agent_summrize = createAgent({
-//   model: 'openai:gpt-5',
-//   tools: [],
-// })
+const agent_summrize = createAgent({
+  model: 'openai:gpt-5',
+  tools: [],
+})
 
-// const agent_orchastrate = createAgent({
-//   model: 'openai:gpt-5',
-//   tools: [],
-// })
+const agent_orchastrate = createAgent({
+  model: 'openai:gpt-5',
+  tools: [],
+})
 
 console.log(await agent_answer.invoke({ messages: 'hi there' }))
-
-// const API_KEY = process.env.GEMINI_API_KEY; // Ensure your key is set in your environment
-
-// async function listModels() {
-//   try {
-//     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
-//     const data = await response.json();
-
-//     data.models.forEach(model => {
-//       console.log(`Model Name: ${model.name}`);
-//       console.log(`Display Name: ${model.displayName}`);
-//       console.log(`Supported Methods: ${model.supportedGenerationMethods.join(', ')}\n`);
-//     });
-//   } catch (error) {
-//     console.error("Failed to fetch models:", error);
-//   }
-// }
-
-// listModels();
 
 /**
  * 
