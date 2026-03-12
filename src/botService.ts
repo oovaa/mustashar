@@ -1,100 +1,124 @@
-import { Context } from "hono";
+import { Request, Response } from "express";
 import { getLLM } from "./llm";
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres"; // 1. Use postgres.js
 import { HumanMessage, SystemMessage } from "langchain";
-import fallback from "./fallback";
+import { answer } from "./rag/chain";
 
-const botService = async (c: Context) => {
-  const sql = neon(c.env.DATABASE_URL);
-  const keys: string[] = JSON.parse(c.env.GROQ_API_KEYS);
-  let key = keys[0];
-  const update = await c.req.json();
+const sql = postgres(process.env.DATABASE_URL!, { ssl: false });
 
-  let loopTimes = 0;
-  while (loopTimes < keys.length) {
-    try {
-      const chat_id = update.message?.chat.id.toString();
-      const userText = update.message?.text;
+const botService = async (req: Request, res: Response) => {
+  try {
+    const key: string = process.env.GROQ_API_KEY!;
+    const update = req.body;
+    const chat_id = update.message?.chat.id.toString();
+    const userText = update.message?.text;
 
-      if (chat_id && userText) {
-        // 1. Iinitlize 2 llms
-        const summarizerLLM = getLLM(key, "llama-3.1-8b-instant", 0, 100);
-
-        const assistanceLLM = getLLM(
-          key,
-          "llama-3.1-8b-instant", // 2 options: llama-3.1-8b-instant: Cheapest, openai/gpt-oss-20b: Better, not much Cheaper
-          0.5,
-        );
-
-        //2. getting the stored summary
-        const result =
-          await sql`SELECT summary FROM user_memories WHERE chat_id = ${chat_id}`;
-        const oldSummary = result[0]?.summary || "No history found";
-
-        //3. updating the old summary
-        const updatedSummary = await summarizerLLM.invoke([
-          new SystemMessage(`
-            - You are a memory compressor. 
-            - Summarize the user's current interests and progress.
-            - Keep the total summary under 100 words.
-            - Write the summary in english.
-    `),
-          new HumanMessage(
-            `Current summary: ${oldSummary}. new user's message: ${userText}`,
-          ),
-        ]);
-
-        await sql`
-            INSERT INTO user_memories (chat_id, summary) 
-            VALUES (${chat_id}, ${updatedSummary.content})
-            ON CONFLICT (chat_id) DO UPDATE SET summary = ${updatedSummary.content}
-          `;
-        // 4. generating the final answer
-        const finalAnswer = await assistanceLLM.invoke([
-          new SystemMessage(`
-           - You are a helpful assistant.
-           - ALWAYS prioritize the "Incoming User Message". If the user changes the subject, follow them immediately.
-           - Do NOT bring old topics unless they are relevant to the new question.
-           - Output MUST be plain text ARABIC. No hashes (#), no symbols, no markdown.
-            `),
-          new HumanMessage(
-            `Stored summary (use it for background only): ${updatedSummary.content}. Incomming user message (follow this now): ${userText}`,
-          ),
-        ]);
-
-        // 5. sending back the answer to the bot
+    if (!chat_id || !userText) {
+      res.send("Ok");
+      return;
+    }
+    if (chat_id && userText === "/clear") {
+      try {
+        await sql`UPDATE user_memories SET summary = 'No history found', updated_at = NOW() WHERE chat_id = ${chat_id}`;
         await fetch(
-          `https://api.telegram.org/bot${c.env.BOT_TOKEN}/sendMessage`,
+          `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              chat_id: chat_id,
-              text: finalAnswer.content,
+              chat_id,
+              text: "تم مسح الذاكرة بنجاح، سأبدأ الآن معك صفحة جديدة ✅",
             }),
           },
         );
-        break;
+        return;
+      } catch (err) {
+        console.error("could not be able to clear the chat :", err);
+        throw err;
       }
-    } catch (err: any) {
-      // dummy fallback process (for stage 2)
-      if (err.status === 429) {
-        console.log(`Rate limit reached !. Switching key...`);
-        const check = await fallback(keys);
-
-        if (check) {
-          key = check;
-          loopTimes++;
-          continue; // restarting the loop
-        }
-      }
-
-      console.error("Error processing update:", err);
-      break;
     }
-  }
 
-  return c.text("Ok");
+    await sql`
+    CREATE TABLE IF NOT EXISTS user_memories (
+      chat_id TEXT PRIMARY KEY,
+      summary TEXT,
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`;
+
+    console.log("Table check/creation complete.");
+
+    try {
+      const summarizerLLM = getLLM(
+        key,
+        "llama-3.1-8b-instant",
+        0,
+        "openai/gpt-oss-20b",
+      );
+
+      // 2. Getting the stored summary
+      const result = await sql`
+          SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
+        `;
+      const oldSummary = result[0]?.summary || "No history found";
+
+      // 3. Updating summary
+      const updatedSummary = await summarizerLLM.invoke([
+        new SystemMessage(`You are a memory compressor for a legal chatbot. Your task is to maintain a concise summary of the user's conversation history.
+
+Instructions:
+- Keep the summary under 800 characters
+- Focus on key legal topics discussed
+- Include important facts or questions
+- Update the summary with new information from the current message
+- If this is the first message, create a new summary
+
+Output only the updated summary, no additional text.`),
+        new HumanMessage(
+          `Current summary: ${oldSummary}. new message: ${userText}`,
+        ),
+      ]);
+
+      console.log(
+        "Summarization Model Used:",
+        updatedSummary.response_metadata?.model_name,
+      );
+
+      await sql`
+          INSERT INTO user_memories (chat_id, summary) 
+          VALUES (${chat_id}, ${String(updatedSummary.content)})
+          ON CONFLICT (chat_id) DO UPDATE SET summary = ${String(
+            updatedSummary.content,
+          )}
+        `;
+
+      console.log("Updated Summary Content:", updatedSummary.content);
+
+      // 4. Calling the chain
+      const finalAnswer = await answer(
+        userText,
+        String(updatedSummary.content),
+      );
+
+      // 5. Telegram fetch
+      await fetch(
+        `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id, text: finalAnswer.content }),
+        },
+      );
+      res.send({ answer: finalAnswer.content });
+    } catch (err: any) {
+      console.error("Error processing update:", err);
+      res.json({
+        error: "حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.json({ error: "حدث خطأ داخلي في الخادم." });
+  }
 };
 
 export default botService;

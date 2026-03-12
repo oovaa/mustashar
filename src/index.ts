@@ -1,15 +1,25 @@
-import { Hono } from "hono";
-import botService from "./botService";
+import 'dotenv/config'
+import express from 'express'
+import botService from './botService'
+import postgres from 'postgres'
 
-export type Env = {
-  GROQ_API_KEY: string;
-  BOT_TOKEN: string;
-  DATABASE_URL: string;
-};
+const app = express()
+app.use(express.json())
 
-const app = new Hono<{ Bindings: Env }>();
+const sql = postgres(process.env.DATABASE_URL!, { ssl: false })
 
-app.get("/check", (c) => c.text("Server is healthy !"));
-app.post("/", botService);
+app.post('/webhook', botService)
 
-export default app;
+app.get('/check', async (req, res) => {
+  try {
+    await sql`SELECT 1`
+    res.send('Server and database are healthy!')
+  } catch (error) {
+    res.status(500).send('Database connection failed')
+  }
+})
+
+const port = 3000
+app.listen(port, () => {
+  console.log(`Bot is running on port ${port}`)
+})
