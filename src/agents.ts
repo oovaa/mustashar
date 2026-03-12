@@ -1,4 +1,4 @@
-import { createAgent } from 'langchain'
+import { createAgent, modelFallbackMiddleware } from 'langchain'
 
 import dotenv from 'dotenv'
 
@@ -28,22 +28,29 @@ dotenv.config()
 // moonshotai/Kimi-K2.5
 // zai-org/GLM-5
 // MiniMaxAI/MiniMax-M2.5
+
+const agent_answer_fallback = modelFallbackMiddleware(
+  'together:moonshotai/Kimi-K2.5', // Second fallback
+)
 const agent_answer = createAgent({
-  model: 'together:MiniMaxAI/MiniMax-M2.5',
-  tools: [],
+  model: 'groq:llama-3.1-8b-instant',
+  middleware: [agent_answer_fallback],
 })
 
+const agent_summrize_fallback = modelFallbackMiddleware(
+  'together:moonshotai/Kimi-K2.5', // Second fallback
+)
 const agent_summrize = createAgent({
   model: 'openai:gpt-5',
-  tools: [],
+  middleware: [agent_summrize_fallback],
 })
 
-const agent_orchastrate = createAgent({
-  model: 'openai:gpt-5',
-  tools: [],
-})
+// const agent_orchastrate = createAgent({
+//   model: 'openai:gpt-5',
+//   tools: [],
+// })
 
-console.log(await agent_answer.invoke({ messages: 'hi there' }))
+console.log(await agent_answer.invoke({ messages: 'أهلاً' }))
 
 /**
  * 
