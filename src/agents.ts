@@ -25,46 +25,34 @@ import { createAgent, modelFallbackMiddleware } from 'langchain'
 // zai-org/GLM-5
 // MiniMaxAI/MiniMax-M2.5
 
-// 1. Standalone Question Agent (Fast / Lightweight Routing)
-// Primary: Groq for instant processing.
-// Fallbacks: Cascading down through other fast, lightweight, and specialized models.
-const agent_stand_alone_fallback = modelFallbackMiddleware(
-  'google:gemma-3-27b-it',
-  'cohere:command-r7b-12-2024',
-  'cohere:command-a-translate-08-2025',
-  'groq:openai/gpt-oss-20b',
-)
-export const agent_stand_alone = createAgent({
-  model: 'groq:llama-3.1-8b-instant',
-  middleware: [agent_stand_alone_fallback],
-})
-
 // 2. Chat / Answer Agent (High EQ / Conversational)
 // Primary: Groq's 70B for unmatched conversational speed and empathy.
 // Fallbacks: Cascading through the massive, highly-capable MoE and reasoning models.
 const agent_answer_fallback = modelFallbackMiddleware(
-  'together:Qwen/Qwen3.5-397B-A17B',
+  'together:moonshotai/Kimi-K2.5',
   'together:zai-org/GLM-5',
-  'together:MiniMaxAI/MiniMax-M2.5',
-  'groq:openai/gpt-oss-120b',
+  'together:Qwen/Qwen3.5-397B-A17B',
 )
+
 export const agent_answer = createAgent({
   model: 'groq:llama-3.3-70b-versatile',
   middleware: [agent_answer_fallback],
+  // Add your Answer Agent system prompt here later
 })
 
 // 3. Summarize Agent (Massive Context / Document Processing)
 // Primary: Cohere's latest flagship for heavy document processing.
 // Fallbacks: Cascading through Google's 1M context model and Cohere's older heavy-hitters.
 const agent_summrize_fallback = modelFallbackMiddleware(
-  'google:gemini-2.5-flash',
+  'together:MiniMaxAI/MiniMax-M2.5',
   'cohere:command-r-plus-08-2024',
-  'together:moonshotai/Kimi-K2.5',
-  'cohere:command-a-vision-07-2025',
+  'groq:openai/gpt-oss-120b',
 )
+
 export const agent_summrize = createAgent({
   model: 'cohere:command-a-03-2025',
   middleware: [agent_summrize_fallback],
+  // Add your Summarize Agent system prompt here later
 })
 
 // const agent_orchastrate = createAgent({
