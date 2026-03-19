@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { getLLM } from "./llm";
-import postgres from "postgres"; // 1. Use postgres.js
 import { HumanMessage, SystemMessage } from "langchain";
 import { answer } from "./rag/chain";
 import { sql } from "./db";
