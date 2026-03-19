@@ -3,8 +3,8 @@ import { getLLM } from "./llm";
 import postgres from "postgres"; // 1. Use postgres.js
 import { HumanMessage, SystemMessage } from "langchain";
 import { answer } from "./rag/chain";
+import { sql } from "./db";
 
-const sql = postgres(process.env.DATABASE_URL!, { ssl: false });
 
 const botService = async (req: Request, res: Response) => {
   try {
