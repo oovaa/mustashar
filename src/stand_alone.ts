@@ -63,12 +63,12 @@ export async function analyzeUserMessage(userInput: string) {
 }
 
 // Test it out!
-const test = await analyzeUserMessage('hi there tell me about you')
+// const test = await analyzeUserMessage('hi there tell me about you')
 
 // const test = await analyzeUserMessage(`
 //  انا مؤجر بيت لي تمانية شهور والعقد مدته سنة وسيد البيت قال  ازيد الايجار او طلع بقدر يطردني قبل القعد ينتهى؟`)
 
-console.log(test.has_quesion ? test.stand_alone_quesions_array : test.message)
+// console.log(test.has_quesion ? test.stand_alone_quesions_array : test.message)
 
 // [ "هل يستطيع سيد البيت طرد المستأجر قبل انتهاء مدة عقد الإيجار المتفق عليها لسنة واحدة؟",
 //   "هل يحق لسيد البيت طلب زيادة الإيجار من المستأجر خلال فترة سريان عقد الإيجار الذي مدته سنة؟"
