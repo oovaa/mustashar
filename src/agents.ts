@@ -25,19 +25,7 @@ import { createAgent, modelFallbackMiddleware } from 'langchain'
 // zai-org/GLM-5
 // MiniMaxAI/MiniMax-M2.5
 
-// 1. Standalone Question Agent (Fast / Lightweight Routing)
-// Primary: Groq for instant processing.
-// Fallbacks: Cascading down through other fast, lightweight, and specialized models.
-const agent_stand_alone_fallback = modelFallbackMiddleware(
-  'google:gemma-3-27b-it',
-  'cohere:command-r7b-12-2024',
-  'cohere:command-a-translate-08-2025',
-  'groq:openai/gpt-oss-20b',
-)
-export const agent_stand_alone = createAgent({
-  model: 'groq:llama-3.1-8b-instant',
-  middleware: [agent_stand_alone_fallback],
-})
+
 
 // 2. Chat / Answer Agent (High EQ / Conversational)
 // Primary: Groq's 70B for unmatched conversational speed and empathy.
