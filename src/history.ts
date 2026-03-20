@@ -54,8 +54,6 @@ export const getHistory = async (chat_id: string) => {
   } catch (error) {
     console.error(`Failed to fetch history for chat ${chat_id}:`, error)
     return 'No history found'
-  } finally {
-    await sql.end()
   }
 }
 
@@ -99,9 +97,6 @@ export const updateHistory = async (
   } catch (error) {
     console.error(`Failed to update history for chat ${chat_id}:`, error)
     throw error
-  }
-  finally{
-    await sql.end()
   }
 }
 
