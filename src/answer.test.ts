@@ -3,7 +3,7 @@ import { describe, expect, test, mock } from 'bun:test'
 const analyzeUserMessage = mock()
 const getHistory = mock()
 const updateHistory = mock()
-const retriverInvoke = mock()
+const retrieverInvoke = mock()
 const createAgent = mock()
 const modelFallbackMiddleware = mock(() => ({}))
 
@@ -18,7 +18,7 @@ mock.module('./history', () => ({
 
 mock.module('./rag/retriver', () => ({
   retriver: {
-    invoke: retriverInvoke,
+    invoke: retrieverInvoke,
   },
 }))
 
@@ -45,7 +45,7 @@ describe('answer()', () => {
     const result = await answer('hello', 'chat-1')
 
     expect(result).toBe('final answer')
-    expect(retriverInvoke).not.toHaveBeenCalled()
+    expect(retrieverInvoke).not.toHaveBeenCalled()
     expect(updateHistory).toHaveBeenCalledWith('hello', 'final answer', 'chat-1')
   })
 
@@ -56,11 +56,11 @@ describe('answer()', () => {
     })
     getHistory.mockResolvedValue('chat summary')
     updateHistory.mockResolvedValue(undefined)
-    retriverInvoke.mockResolvedValueOnce([
+    retrieverInvoke.mockResolvedValueOnce([
       { pageContent: 'chunk a' },
       { pageContent: 'chunk b' },
     ])
-    retriverInvoke.mockResolvedValueOnce([
+    retrieverInvoke.mockResolvedValueOnce([
       { pageContent: 'chunk b' },
       { pageContent: 'chunk c' },
     ])
@@ -74,7 +74,7 @@ describe('answer()', () => {
     const result = await answer('original q', 'chat-2')
 
     expect(result).toBe('rag answer')
-    expect(retriverInvoke).toHaveBeenCalledTimes(2)
+    expect(retrieverInvoke).toHaveBeenCalledTimes(2)
     expect(updateHistory).toHaveBeenCalledWith('original q', 'rag answer', 'chat-2')
 
     const payloadArg = invoke.mock.calls[0][0].messages as string

@@ -5,7 +5,7 @@ import {
   ANSWER_SYSTEM_CHATTING_PROMPT,
   RAG_ANSWER_SYSTEM_PROMPT,
 } from './answerPrompts'
-import { retriver } from './rag/retriver'
+import { retriver as retriever } from './rag/retriver'
 
 const agent_answer_fallback = modelFallbackMiddleware(
   'together:moonshotai/Kimi-K2.5',
@@ -23,11 +23,14 @@ const agent_answer_fallback = modelFallbackMiddleware(
 const answer = async (userInput: string, chat_id: string) => {
   const analyzed = await analyzeUserMessage(userInput)
 
-  const { has_quesion, stand_alone_quesions_array } = analyzed
+  const {
+    has_quesion: has_question,
+    stand_alone_quesions_array: standaloneQuestions,
+  } = analyzed
 
   const history = await getHistory(chat_id)
 
-  if (!has_quesion) {
+  if (!has_question) {
     const agent_answer = createAgent({
       model: 'groq:llama-3.3-70b-versatile',
       middleware: [agent_answer_fallback],
@@ -54,8 +57,8 @@ const answer = async (userInput: string, chat_id: string) => {
    * page content before passing to the answer agent.
    */
   const retrievedChunks: Array<{ pageContent: string }> = []
-  for (const standAloneQuestion of stand_alone_quesions_array) {
-    const chunks = await retriver.invoke(standAloneQuestion)
+  for (const standAloneQuestion of standaloneQuestions) {
+    const chunks = await retriever.invoke(standAloneQuestion)
     for (const chunk of chunks || []) {
       if (chunk?.pageContent) {
         retrievedChunks.push({ pageContent: chunk.pageContent })
@@ -70,8 +73,8 @@ const answer = async (userInput: string, chat_id: string) => {
     .join('\n\n')
 
   const standAloneQuestions =
-    stand_alone_quesions_array.length > 0
-      ? stand_alone_quesions_array.map((question) => `- ${question}`).join('\n')
+    standaloneQuestions.length > 0
+      ? standaloneQuestions.map((question) => `- ${question}`).join('\n')
       : '- لا توجد أسئلة قانونية مستقلة.'
 
   const ragAnswerAgent = createAgent({

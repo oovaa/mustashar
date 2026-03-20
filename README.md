@@ -11,6 +11,19 @@ A Telegram bot and web API that provides legal information using Retrieval-Augme
 - **Memory System**: Uses PostgreSQL to maintain conversation summaries
 - **Docker Support**: Easy deployment with Docker Compose
 
+## Answer Pipeline
+
+The main answer flow is implemented in `/src/answer.ts`:
+
+1. Analyze the user message into:
+   - conversational message, or
+   - legal question flow with standalone questions.
+2. If it is conversational, answer directly with chat-history-aware prompt.
+3. If it is a legal question flow, run retrieval for each standalone question, collect chunks, de-duplicate context, and answer with a strict RAG prompt.
+4. After answering in both branches, update and store rolling chat summary in `user_memories`.
+
+`/src/botService.ts` now delegates this full flow to `answer(userText, chat_id)` to keep memory update and retrieval behavior consistent.
+
 ## Documentation
 
 - **[RAG System Documentation](RAG.md)** - Detailed documentation for the Retrieval-Augmented Generation components

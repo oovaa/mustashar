@@ -27,6 +27,7 @@ const botService = async (req: Request, res: Response) => {
             }),
           },
         );
+        res.send("Ok");
         return;
       } catch (err) {
         console.error("could not be able to clear the chat :", err);
