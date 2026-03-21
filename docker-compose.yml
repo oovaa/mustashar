@@ -9,7 +9,7 @@ services:
     ports:
       - "5432"
     volumes:
-      - ./mustashar_pgdata:/var/lib/postgresql/data
+      - ./mustashar_pgdata:/var/lib/postgresql
     # DO NOT map 5432 to host ports. 
     # This keeps the DB invisible to the internet.
     networks:
