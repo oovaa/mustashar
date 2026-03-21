@@ -18,7 +18,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "scripts": {
-    "start": "bun run src/index.ts",
+    "start": "bun run src/index.ts; bun  migrate",
     "dev": "bun --watch run src/index.ts",
     "migrate": "bun run src/create_db.ts"
   },
