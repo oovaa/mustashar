@@ -9,8 +9,8 @@ import { retriver as retriever } from './rag/retriver'
 import { logger } from './logger'
 
 const agent_answer_fallback = modelFallbackMiddleware(
-  'together:Qwen/Qwen3.5-397B-A17B',
   'together:moonshotai/Kimi-K2.5',
+  'groq:llama-3.3-70b-versatile',
   'together:zai-org/GLM-5',
 )
 
@@ -39,7 +39,7 @@ const answer = async (userInput: string, chat_id: string, requestId?: string) =>
   if (!has_question) {
     logger.info(`${logPrefix}Route: General Conversation`);
     const agent_answer = createAgent({
-      model: 'groq:llama-3.3-70b-versatile',
+      model:   'together:Qwen/Qwen3.5-397B-A17B',
       middleware: [agent_answer_fallback],
       systemPrompt: ANSWER_SYSTEM_CHATTING_PROMPT,
     })
