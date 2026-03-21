@@ -2,6 +2,7 @@ import "dotenv/config";
 import { getLLM } from "../llm";
 import { retriver } from "./retriver";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { logger } from "../logger";
 
 const key = process.env.GROQ_API_KEY || "";
 const llm = getLLM(key, "llama-3.3-70b-versatile", 0.5, "openai/gpt-oss-120b");
@@ -38,7 +39,7 @@ export async function answer(question: string, summary?: string) {
   });
 
   const standAloneQuery = String(standAloneResult.content).trim();
-  console.log("Generated Search Query:", standAloneQuery);
+  logger.debug(`Generated Search Query: ${standAloneQuery}`);
 
   /* ===============================
      STEP 2: Retrieve Legal Context
@@ -51,7 +52,7 @@ export async function answer(question: string, summary?: string) {
       ? chunks.map((x: any) => x.pageContent).join("\n\n")
       : "";
 
-  console.log("Retrieved Chunks:", chunks?.length ?? 0);
+  logger.debug(`Retrieved Chunks: ${chunks?.length ?? 0}`);
 
   /* ===============================
      STEP 3: Generate Answer
@@ -102,8 +103,8 @@ export async function answer(question: string, summary?: string) {
     standAloneQuery,
   });
 
-  console.log("Answer Model Used:", result.response_metadata.model);
-  console.log("FINAL ANSWER:\n", result.content);
+  logger.info(`Answer Model Used: ${result.response_metadata.model}`);
+  logger.info(`FINAL ANSWER:\n ${result.content}`);
 
   return result;
 }

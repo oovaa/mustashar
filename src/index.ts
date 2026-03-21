@@ -2,9 +2,11 @@ import 'dotenv/config'
 import express from 'express'
 import botService from './botService'
 import postgres from 'postgres'
+import { logger } from './logger'
 
 const app = express()
 app.use(express.json())
+
 
 const sql = postgres(process.env.DATABASE_URL!, { ssl: false })
 
@@ -21,5 +23,5 @@ app.get('/check', async (req, res) => {
 
 const port = 3000
 app.listen(port, () => {
-  console.log(`Bot is running on port ${port}`)
+  logger.info(`Bot is running on port ${port}`)
 })

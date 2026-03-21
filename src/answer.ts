@@ -6,6 +6,7 @@ import {
   RAG_ANSWER_SYSTEM_PROMPT,
 } from './answerPrompts'
 import { retriver as retriever } from './rag/retriver'
+import { logger } from './logger'
 
 const agent_answer_fallback = modelFallbackMiddleware(
   'together:Qwen/Qwen3.5-397B-A17B',
@@ -72,7 +73,7 @@ const answer = async (userInput: string, chat_id: string) => {
     .filter(Boolean)
     .join('\n\n')
 
-  console.log('uniqueContext: ', uniqueContext)
+  logger.debug(`uniqueContext: ${uniqueContext}`)
 
   const standAloneQuestions =
     standaloneQuestions.length > 0

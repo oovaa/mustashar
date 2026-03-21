@@ -1,5 +1,6 @@
 import { createAgent, modelFallbackMiddleware } from 'langchain'
 import { z } from 'zod'
+import { logger } from './logger'
 
 // 1. Standalone Question Agent
 const agent_stand_alone_fallback = modelFallbackMiddleware(
@@ -57,7 +58,7 @@ export async function analyzeUserMessage(userInput: string) {
     const response = await agent_stand_alone.invoke({ messages: userInput })
     return response.structuredResponse
   } catch (error) {
-    console.error('Failed to process message:', error)
+    logger.error(`Failed to process message: ${error}`)
     throw error
   }
 }

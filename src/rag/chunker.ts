@@ -4,6 +4,7 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf'
 import { TextLoader } from '@langchain/classic/document_loaders/fs/text'
 import { Document } from '@langchain/core/documents'
+import { logger } from '../logger'
 
 export async function loadDocsFromFolder(
   folderPath: string = './docs',
@@ -41,7 +42,7 @@ export async function loadDocsFromFolder(
       const chunks = await splitter.splitDocuments(processedDocs)
       docs.push(...chunks)
     } catch (error) {
-      console.warn(`Failed to load PDF ${pdfPath}:`, error)
+      logger.warn(`Failed to load PDF ${pdfPath}: ${error}`)
     }
   }
 
@@ -63,11 +64,11 @@ export async function loadDocsFromFolder(
       const chunks = await splitter.splitDocuments([docWithSource])
       docs.push(...chunks)
     } catch (error) {
-      console.warn(`Failed to load text ${textPath}:`, error)
+      logger.warn(`Failed to load text ${textPath}: ${error}`)
     }
   }
 
-  console.log(
+  logger.info(
     `Loaded ${docs.length} chunks from ${pdfFiles.length + textFiles.length} files`,
   )
   return docs
@@ -93,7 +94,7 @@ async function findFiles(dir: string, extensions: string[]): Promise<string[]> {
       }
     }
   } catch (error) {
-    console.warn(`Error reading ${dir}:`, error)
+    logger.warn(`Error reading ${dir}: ${error}`)
   }
 
   return files

@@ -35,7 +35,7 @@ const botService = async (req: Request, res: Response) => {
         res.send('Ok')
         return
       } catch (err) {
-        console.error('could not be able to clear the chat :', err)
+        logger.error(`could not be able to clear the chat : ${err}`)
         throw err
       }
     }
@@ -69,13 +69,13 @@ const botService = async (req: Request, res: Response) => {
       )
       res.send({ answer: finalAnswer })
     } catch (err: any) {
-      console.error('Error processing update:', err)
+      logger.error(`Error processing update: ${err}`)
       res.json({
         error: 'حدث خطأ أثناء معالجة الاستعلام. يرجى المحاولة مرة أخرى.',
       })
     }
   } catch (error) {
-    console.log(error)
+    logger.error(`Internal server error: ${error}`)
     res.json({ error: 'حدث خطأ داخلي في الخادم.' })
   }
 }

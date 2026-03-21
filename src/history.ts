@@ -1,5 +1,6 @@
 import { createAgent, modelFallbackMiddleware } from 'langchain'
 import { sql } from './db'
+import { logger } from './logger'
 
 // ==========================================
 // 3. SUMMARIZE AGENT (Rolling Memory Manager)
@@ -52,7 +53,7 @@ export const getHistory = async (chat_id: string) => {
         `
     return result[0]?.summary || 'No history found'
   } catch (error) {
-    console.error(`Failed to fetch history for chat ${chat_id}:`, error)
+    logger.error(`Failed to fetch history for chat ${chat_id}: ${error}`)
     return 'No history found'
   }
 }
@@ -92,10 +93,10 @@ export const updateHistory = async (
          ON CONFLICT (chat_id) DO UPDATE SET summary = ${updatedSummaryText}
         `
 
-    console.log(`Successfully updated history for chat: ${chat_id}`)
+    logger.debug(`Successfully updated history for chat: ${chat_id}`)
     return updatedSummaryText
   } catch (error) {
-    console.error(`Failed to update history for chat ${chat_id}:`, error)
+    logger.error(`Failed to update history for chat ${chat_id}: ${error}`)
     throw error
   }
 }
@@ -107,7 +108,7 @@ export const updateHistory = async (
 export async function testArabicSummarizer() {
   const testChatId = 'test-chat-arabic-001'
 
-  console.log(`\n🚀 Starting Summarizer Test for Chat ID: ${testChatId}\n`)
+  logger.info(`\n🚀 Starting Summarizer Test for Chat ID: ${testChatId}\n`)
 
   // Simulated conversation history (Array of interactions)
   const dummyInteractions = [
@@ -129,10 +130,10 @@ export async function testArabicSummarizer() {
   ]
 
   for (const interaction of dummyInteractions) {
-    console.log(`\n--- Processing Step ${interaction.step} ---`)
-    console.log(`User: ${interaction.user}`)
-    console.log(`AI: ${interaction.ai}`)
-    console.log(`⏳ Generating new summary...`)
+    logger.info(`--- Processing Step ${interaction.step} ---`)
+    logger.info(`User: ${interaction.user}`)
+    logger.info(`AI: ${interaction.ai}`)
+    logger.info(`⏳ Generating new summary...`)
 
     try {
       const newSummary = await updateHistory(
@@ -141,15 +142,15 @@ export async function testArabicSummarizer() {
         testChatId,
       )
 
-      console.log(`✅ NEW DATABASE SUMMARY:`)
-      console.log(`\x1b[32m${newSummary}\x1b[0m`) // Prints the summary in green for readability
+      logger.info(`✅ NEW DATABASE SUMMARY:`)
+      logger.info(newSummary) // Prints the summary in green for readability
     } catch (error) {
-      console.error(`❌ Failed at step ${interaction.step}:`, error)
+      logger.error(`❌ Failed at step ${interaction.step}: ${error}`)
       break // Stop the test if an error occurs
     }
   }
 
-  console.log(`\n🏁 Test Complete!`)
+  logger.info(`\n🏁 Test Complete!`)
 }
 
 // Uncomment the line below to run the test when you execute the file

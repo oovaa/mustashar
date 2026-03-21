@@ -15,7 +15,8 @@
     "hnswlib-node": "^3.0.0",
     "langchain": "^1.2.35",
     "postgres": "^3.4.8",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "scripts": {
     "start": "bun run src/index.ts",
