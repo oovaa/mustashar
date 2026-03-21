@@ -3,6 +3,7 @@ import express from 'express'
 import botService from './botService'
 import postgres from 'postgres'
 import { logger } from './logger'
+import { getHistory } from './history'
 
 const app = express()
 app.use(express.json())
@@ -18,6 +19,17 @@ app.get('/check', async (req, res) => {
     res.send('Server and database are healthy!')
   } catch (error) {
     res.status(500).send('Database connection failed')
+  }
+})
+
+app.get('/summary/:chatId', async (req, res) => {
+  try {
+    const { chatId } = req.params
+    const history = await getHistory(chatId)
+    res.json({ history })
+  } catch (error) {
+    logger.error(`Error fetching summary for chat ${req.params.chatId}: ${error}`)
+    res.status(500).json({ error: 'Failed to fetch summary' })
   }
 })
 
