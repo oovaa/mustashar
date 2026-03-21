@@ -41,12 +41,6 @@ const botService = async (req: Request, res: Response) => {
 
     // Optimization: Table creation should ideally be in a separate migration/init file, 
     // but kept here for now per your original logic.
-    await sql`
-      CREATE TABLE IF NOT EXISTS user_memories (
-        chat_id TEXT PRIMARY KEY,
-        summary TEXT,
-        updated_at TIMESTAMP DEFAULT NOW()
-      )`
 
     logger.info(`[${requestId}] Processing user request via answer pipeline...`)
     const finalAnswer = await answer(userText, chat_id, requestId)
