@@ -44,6 +44,7 @@ RULES FOR STANDALONE QUESTIONS:
 - Resolve all pronouns and implied context using the provided CHAT HISTORY. Every question MUST make complete sense on its own.
 - The language MUST be the exact same language that the user used.
 - ANTI-LOOPING: Extract a MAXIMUM of 3 to 5 distinct, unique questions. 
+- Convert colloquial Arabic to Modern Standard Arabic
 - CRITICAL: DO NOT repeat questions. DO NOT answer the questions. Your only job is extraction.`
 
 export const agent_stand_alone = createAgent({
