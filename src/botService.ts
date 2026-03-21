@@ -12,7 +12,7 @@ const botService = async (req: Request, res: Response) => {
     const chat_id = update.message?.chat?.id?.toString() // Added optional chaining
     const userText = update.message?.text
 
-    logger.debug(`[${requestId}] chatid: ${chat_id} message: ${userText}\n body: ${JSON.stringify(update)}`)
+    logger.debug(`[${requestId}] chatid: ${chat_id} message: ${userText}\n body: ${JSON.stringify({update})}`)
 
     if (!chat_id || !userText) {
       logger.warn(`[${requestId}] Missing chat_id or userText.`);
