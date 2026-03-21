@@ -25,7 +25,9 @@ const answer = async (userInput: string, chat_id: string, requestId?: string) =>
   const logPrefix = requestId ? `[${requestId}] ` : '';
   logger.info(`${logPrefix}Starting answer pipeline for chat_id: ${chat_id}`);
   
-  const analyzed = await analyzeUserMessage(userInput)
+  const history = await getHistory(chat_id)
+  
+  const analyzed = await analyzeUserMessage(userInput, history)
 
   const {
     has_quesion: has_question,
@@ -33,8 +35,6 @@ const answer = async (userInput: string, chat_id: string, requestId?: string) =>
   } = analyzed
 
   logger.debug(`${logPrefix}Analysis result: has_question=${has_question}, questions=${standaloneQuestions.length}`);
-
-  const history = await getHistory(chat_id)
 
   if (!has_question) {
     logger.info(`${logPrefix}Route: General Conversation`);
