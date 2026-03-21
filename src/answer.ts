@@ -21,7 +21,10 @@ const agent_answer_fallback = modelFallbackMiddleware(
  * - answers with the correct prompt strategy
  * - updates/stores rolling chat summary
  */
-const answer = async (userInput: string, chat_id: string) => {
+const answer = async (userInput: string, chat_id: string, requestId?: string) => {
+  const logPrefix = requestId ? `[${requestId}] ` : '';
+  logger.info(`${logPrefix}Starting answer pipeline for chat_id: ${chat_id}`);
+  
   const analyzed = await analyzeUserMessage(userInput)
 
   const {
@@ -29,9 +32,12 @@ const answer = async (userInput: string, chat_id: string) => {
     stand_alone_quesions_array: standaloneQuestions,
   } = analyzed
 
+  logger.debug(`${logPrefix}Analysis result: has_question=${has_question}, questions=${standaloneQuestions.length}`);
+
   const history = await getHistory(chat_id)
 
   if (!has_question) {
+    logger.info(`${logPrefix}Route: General Conversation`);
     const agent_answer = createAgent({
       model: 'groq:llama-3.3-70b-versatile',
       middleware: [agent_answer_fallback],
@@ -48,6 +54,7 @@ const answer = async (userInput: string, chat_id: string) => {
 
     const response = await agent_answer.invoke({ messages: messagePayload })
     const result = String(response.messages.at(-1)?.content ?? '').trim()
+    logger.debug(`${logPrefix}Generated general response. Updating history...`);
     await updateHistory(userInput, result, chat_id)
     return result
   }
@@ -57,9 +64,12 @@ const answer = async (userInput: string, chat_id: string) => {
    * We keep a local store of retrieved chunks, then merge and de-duplicate by
    * page content before passing to the answer agent.
    */
+  logger.info(`${logPrefix}Route: Legal Question RAG. Processing ${standaloneQuestions.length} questions.`);
   const retrievedChunks: Array<{ pageContent: string }> = []
   for (const standAloneQuestion of standaloneQuestions) {
+    logger.debug(`${logPrefix}Retrieving for question: "${standAloneQuestion}"`);
     const chunks = await retriever.invoke(standAloneQuestion)
+    logger.debug(`${logPrefix}Found ${chunks?.length || 0} chunks for question.`);
     for (const chunk of chunks || []) {
       if (chunk?.pageContent) {
         retrievedChunks.push({ pageContent: chunk.pageContent })
@@ -102,7 +112,10 @@ ${uniqueContext || 'No legal context retrieved.'}
 
   const ragResponse = await ragAnswerAgent.invoke({ messages: ragPayload })
   const ragResult = String(ragResponse.messages.at(-1)?.content ?? '').trim()
+  
+  logger.info(`${logPrefix}RAG Answer generated. Updating history...`);
   await updateHistory(userInput, ragResult, chat_id)
+  
   return ragResult
 }
 
