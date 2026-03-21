@@ -13,6 +13,6 @@ COPY . .
 # Expose the port your Express app will run on
 EXPOSE 3000
 
-RUN bun run migrate
+RUN bun migrate
 
 CMD ["bun", "src/index.ts"]
