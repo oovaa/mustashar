@@ -8,9 +8,9 @@ import {
 import { retriver as retriever } from './rag/retriver'
 
 const agent_answer_fallback = modelFallbackMiddleware(
+  'together:Qwen/Qwen3.5-397B-A17B',
   'together:moonshotai/Kimi-K2.5',
   'together:zai-org/GLM-5',
-  'together:Qwen/Qwen3.5-397B-A17B',
 )
 
 /**
@@ -72,6 +72,8 @@ const answer = async (userInput: string, chat_id: string) => {
     .filter(Boolean)
     .join('\n\n')
 
+  console.log('uniqueContext: ', uniqueContext)
+
   const standAloneQuestions =
     standaloneQuestions.length > 0
       ? standaloneQuestions.map((question) => `- ${question}`).join('\n')
@@ -104,3 +106,6 @@ ${uniqueContext || 'No legal context retrieved.'}
 }
 
 export { answer }
+
+
+
