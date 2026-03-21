@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:latest
+    image: postgres:18
     restart: always
     environment:
       POSTGRES_DB: mustashar_db
