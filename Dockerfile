@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y build-essential python3 make g++
 WORKDIR /app
 
 COPY package.json ./
-RUN bun install
+RUN bun install --production
 
 COPY . .
 

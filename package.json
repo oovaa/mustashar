@@ -21,7 +21,7 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch run src/index.ts",
-    "migrate": "bun create_db.ts"
+    "migrate": "bun run create_db.ts"
   },
   "type": "module",
   "devDependencies": {
