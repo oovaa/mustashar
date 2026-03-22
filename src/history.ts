@@ -87,7 +87,7 @@ export const updateHistory = async (
     // LangChain text responses are usually in aiResponse.content or aiResponse.text depending on the wrapper, assuming .content here:
     // console.log('Ai summary response:\n', aiResponse.messages.at(1)?.content)
 
-    const updatedSummaryText = String(aiResponse.messages.at(1)?.content).trim()
+    const updatedSummaryText = String(aiResponse.messages.at(-1)?.content).trim()
 
     // 4. Upsert the new summary into the database
     await sql`
