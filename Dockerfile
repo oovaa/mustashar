@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y build-essential python3 make g++
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+COPY package.json ./
 RUN bun install
 
 COPY . .
@@ -13,4 +13,4 @@ COPY . .
 # Expose the port your Express app will run on
 EXPOSE 3000
 
-CMD ["bun", "src/index.ts"]
+CMD ["bun", "start"]

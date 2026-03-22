@@ -28,17 +28,7 @@ import { createAgent, modelFallbackMiddleware } from 'langchain'
 // 2. Chat / Answer Agent (High EQ / Conversational)
 // Primary: Groq's 70B for unmatched conversational speed and empathy.
 // Fallbacks: Cascading through the massive, highly-capable MoE and reasoning models.
-const agent_answer_fallback = modelFallbackMiddleware(
-  'together:moonshotai/Kimi-K2.5',
-  'together:zai-org/GLM-5',
-  'together:Qwen/Qwen3.5-397B-A17B',
-)
 
-export const agent_answer = createAgent({
-  model: 'groq:llama-3.3-70b-versatile',
-  middleware: [agent_answer_fallback],
-  // Add your Answer Agent system prompt here later
-})
 
 // 3. Summarize Agent (Massive Context / Document Processing)
 // Primary: Cohere's latest flagship for heavy document processing.

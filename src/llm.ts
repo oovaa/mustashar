@@ -1,4 +1,5 @@
 import { ChatGroq } from '@langchain/groq'
+import { logger } from './logger'
 
 // creating the model from chatgroq
 export const getLLM = (
@@ -15,9 +16,8 @@ export const getLLM = (
     callbacks: [
       {
         handleLLMError: (err: any) => {
-          console.error(
-            `Primary LLM Error on model ${model}:`,
-            JSON.stringify(err, null, 2),
+          logger.error(
+            `Primary LLM Error on model ${model}: ${JSON.stringify(err, null, 2)}`
           )
         },
       },
@@ -34,15 +34,14 @@ export const getLLM = (
     callbacks: [
       {
         handleLLMError: (err: any) => {
-          console.error(
-            `Fallback LLM Error on model ${fallbackModel}:`,
-            JSON.stringify(err, null, 2),
+          logger.error(
+            `Fallback LLM Error on model ${fallbackModel}: ${JSON.stringify(err, null, 2)}`
           )
         },
       },
       {
         handleLLMStart: () => {
-          console.log(`Starting Fallback LLM with model: ${fallbackModel}`)
+          logger.info(`Starting Fallback LLM with model: ${fallbackModel}`)
         },
       },
     ],
