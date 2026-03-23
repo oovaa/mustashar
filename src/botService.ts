@@ -17,7 +17,7 @@ const botService = async (req: Request, res: Response) => {
     if (!chat_id || !userText) {
       logger.warn(`[${requestId}] Missing chat_id or userText.`);
       // Use return to stop execution
-      return res.status(400).send({ message: "chat id and message are required" });
+      return res.status(200).send({ message: "chat id and message are required" });
     }
 
     // Handle /clear command
