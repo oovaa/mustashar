@@ -4,10 +4,10 @@ import botService from './botService'
 import postgres from 'postgres'
 import { logger } from './logger'
 import { getHistory } from './history'
+import { answer } from './answer'
 
 const app = express()
 app.use(express.json())
-
 
 const sql = postgres(process.env.DATABASE_URL!, { ssl: false })
 
@@ -28,8 +28,27 @@ app.get('/summary/:chatId', async (req, res) => {
     const history = await getHistory(chatId)
     res.json({ history })
   } catch (error) {
-    logger.error(`Error fetching summary for chat ${req.params.chatId}: ${error}`)
+    logger.error(
+      `Error fetching summary for chat ${req.params.chatId}: ${error}`,
+    )
     res.status(500).json({ error: 'Failed to fetch summary' })
+  }
+})
+
+app.post('/answer', async (req, res) => {
+  const { question, chatId } = req.body
+
+  if (!question || !chatId) {
+    res.status(400).send('Missing question or chatId')
+    return
+  }
+
+  try {
+    const result = await answer(question, chatId)
+    res.json({ answer: result })
+  } catch (error) {
+    logger.error(`Error processing answer for chat ${chatId}: ${error}`)
+    res.status(500).json({ error: 'Failed to answer question' })
   }
 })
 
