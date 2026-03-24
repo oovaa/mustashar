@@ -47,7 +47,7 @@ export const agent_summrize = createAgent({
 // ==========================================
 
 export const getHistory = async (chat_id: string) => {
-  logger.debug(`Fetching history for chat_id: ${chat_id}`);
+  logger.debug(`Fetching history for chat_id: ${chat_id}`)
   try {
     const result = await sql`
           SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
@@ -64,7 +64,9 @@ export const updateHistory = async (
   response: string,
   chat_id: string,
 ) => {
-  logger.debug(`Updating history for chat_id: ${chat_id}. Message len: ${message.length}, Response len: ${response.length}`);
+  logger.debug(
+    `Updating history for chat_id: ${chat_id}. Message len: ${message.length}, Response len: ${response.length}`,
+  )
   try {
     // 1. Fetch the existing history
     const oldHistory = await getHistory(chat_id)
@@ -82,12 +84,16 @@ export const updateHistory = async (
     `
 
     // 3. Generate the new updated summary
-    logger.debug(`Generating summary via agent for chat_id: ${chat_id}`);
+    logger.debug(`Generating summary via agent for chat_id: ${chat_id}`)
+    logger.debug(`Invoking agent_summrize. Input Payload:\n${summaryPayload}`)
     const aiResponse = await agent_summrize.invoke({ messages: summaryPayload })
     // LangChain text responses are usually in aiResponse.content or aiResponse.text depending on the wrapper, assuming .content here:
     // console.log('Ai summary response:\n', aiResponse.messages.at(1)?.content)
 
-    const updatedSummaryText = String(aiResponse.messages.at(-1)?.content).trim()
+    const updatedSummaryText = String(
+      aiResponse.messages.at(-1)?.content,
+    ).trim()
+    logger.debug(`agent_summrize output:\n${updatedSummaryText}`)
 
     // 4. Upsert the new summary into the database
     await sql`

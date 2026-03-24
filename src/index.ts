@@ -1,15 +1,13 @@
 import 'dotenv/config'
 import express from 'express'
 import botService from './botService'
-import postgres from 'postgres'
 import { logger } from './logger'
 import { getHistory } from './history'
 import { answer } from './answer'
+import { sql } from './db'
 
 const app = express()
 app.use(express.json())
-
-const sql = postgres(process.env.DATABASE_URL!, { ssl: false })
 
 app.post('/webhook', botService)
 

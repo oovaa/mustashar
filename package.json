@@ -18,12 +18,13 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "scripts": {
-    "start": "bun run src/index.ts; bun  migrate",
+    "start": "bun run src/index.ts",
     "dev": "bun --watch run src/index.ts",
     "migrate": "bun run src/create_db.ts"
   },
   "type": "module",
   "devDependencies": {
-    "@types/winston": "^2.4.4"
+    "@types/winston": "^2.4.4",
+    "node-gyp": "^12.2.0"
   }
 }
