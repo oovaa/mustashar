@@ -33,10 +33,8 @@ const answer = async (
 
   const analyzed = await analyzeUserMessage(userInput, history)
 
-  const {
-    has_quesion: has_question,
-    stand_alone_quesions_array: standaloneQuestions,
-  } = analyzed
+  const { has_question, stand_alone_questions_array: standaloneQuestions } =
+    analyzed
 
   logger.debug(
     `${logPrefix}Analysis result: has_question=${has_question}, questions=${standaloneQuestions.length}`,

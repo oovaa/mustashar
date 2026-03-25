@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import express from 'express'
 import botService from './botService'
 import { logger } from './logger'
