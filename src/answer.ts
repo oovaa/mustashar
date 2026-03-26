@@ -7,6 +7,7 @@ import {
 } from './answerPrompts'
 import { retriver as retriever } from './rag/retriver'
 import { logger } from './logger'
+import { rrfFuse } from './rag/rrf'
 
 const agent_answer_fallback = modelFallbackMiddleware(
   'together:moonshotai/Kimi-K2.5',
@@ -76,24 +77,38 @@ const answer = async (
   logger.info(
     `${logPrefix}Route: Legal Question RAG. Processing ${standaloneQuestions.length} questions.`,
   )
-  const retrievedChunks: Array<{ pageContent: string }> = []
+  const perList: any[][] = []
+
   for (const standAloneQuestion of standaloneQuestions) {
     logger.debug(`${logPrefix}Retrieving for question: "${standAloneQuestion}"`)
-    const chunks = await retriever.invoke(standAloneQuestion)
-    logger.debug(
-      `${logPrefix}Found ${chunks?.length || 0} chunks for question.`,
-    )
-    for (const chunk of chunks || []) {
-      if (chunk?.pageContent) {
-        retrievedChunks.push({ pageContent: chunk.pageContent })
-      }
-    }
+    const chunks = (await retriever.invoke(standAloneQuestion)) || []
+    logger.debug(`${logPrefix}Found ${chunks?.length || 0} chunks for question.`)
+    perList.push(chunks.slice(0, 10))
   }
 
-  const uniqueContext = Array.from(
-    new Set(retrievedChunks.map((chunk) => chunk.pageContent.trim())),
-  )
-    .filter(Boolean)
+  // Fuse per-question lists using RRF, dedupe by pageContent, and limit
+  let finalDocs: any[] = []
+  if (perList.length) {
+    finalDocs = rrfFuse(perList, 60)
+  } else {
+    finalDocs = (await retriever.invoke(userInput))?.slice(0, 15) || []
+  }
+
+  const seen = new Set<string>()
+  finalDocs = finalDocs.filter((d: any) => {
+    const key = String(d.pageContent || '')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  finalDocs = finalDocs.slice(0, 20)
+
+  const uniqueContext = finalDocs
+    .map((d: any) => {
+      const source = d.metadata?.source || ''
+      return `المصدر: ${source}\n${d.pageContent}`
+    })
     .join('\n\n')
 
   logger.debug(`uniqueContext: ${uniqueContext}`)
