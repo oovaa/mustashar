@@ -7,9 +7,11 @@ services:
       POSTGRES_USER: mustashar_admin
       POSTGRES_PASSWORD: somepass
     ports:
+      # do not expose to host unless needed; map to host only if required like "5432:5432"
       - "5432"
     volumes:
-      - ./mustashar_pgdata:/var/lib/postgresql
+      # use a named docker volume mounted at /var/lib/postgresql (recommended for Postgres 18+)
+      - mustashar_pgdata:/var/lib/postgresql
     # DO NOT map 5432 to host ports. 
     # This keeps the DB invisible to the internet.
     networks:
@@ -38,3 +40,4 @@ networks:
 
 volumes:
   mustashar_pgdata:
+    driver: local
