@@ -1,17 +1,19 @@
 import { ChatGroq } from '@langchain/groq'
 
-// creating the model from chatgroq
+// Creating the model from ChatGroq
 export const getLLM = (
   apiKey?: string,
-  model: string = 'llama-3.3-70b-versatile',
+  // Primary: Qwen 3 (32B) - Excellent for Arabic & Legal reasoning
+  model: string = 'qwen-3-32b', 
   temperature: number = 0,
-  fallbackModel: string | null = null,
+  // Fallback: Llama 3.3 (70B) - Highly reliable versatile model
+  fallbackModel: string | null = 'llama-3.3-70b-versatile',
 ) => {
   const primary = new ChatGroq({
     apiKey: apiKey || process.env.GROQ_API_KEY,
     model: model,
     temperature: temperature,
-    maxRetries: 0, // Disable internal retries to fail fast and trigger fallback
+    maxRetries: 0, 
     callbacks: [
       {
         handleLLMError: (err: any) => {

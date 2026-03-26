@@ -4,7 +4,8 @@ export async function rerank(
   query: string,
   candidates: any[],
   model = "ALJIACHI/Mizan-Rerank-v1",
-  topK = 5
+  topK = 3
+  
 ) {
   if (!candidates?.length) return [];
 
@@ -14,9 +15,8 @@ export async function rerank(
 
   const docTexts = candidates.map(c => c.pageContent || "");
 
-  /* ===============================
-     TRY CROSS ENCODER (Correct Format)
-     =============================== */
+ 
+     //TRY CROSS ENCODER 
 
   if (hfKey) {
     try {
@@ -60,10 +60,9 @@ export async function rerank(
     }
   }
 
-  /* ===============================
-     Fallback: embedding similarity
-     =============================== */
 
+     //Fallback: embedding similarity
+     
   const qVec = await embeddings.embedQuery(query);
   const docVecs = await embeddings.embedDocuments(docTexts);
 

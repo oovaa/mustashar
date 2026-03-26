@@ -12,11 +12,15 @@
     "express": "^5.2.1",
     "hnswlib-node": "^3.0.0",
     "langchain": "^1.2.19",
-    "postgres": "^3.4.8"
+    "postgres": "^3.4.8",
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.12"
   },
   "scripts": {
     "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts"
+    "dev": "bun --watch run src/index.ts",
+    "scrape-laws": "bun run src/rag/scraper/scrape.ts",
+    "chunk-laws": "bun run src/rag/scraper/chunk_all.ts"
   },
   "type": "module"
 }

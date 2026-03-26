@@ -1,15 +1,33 @@
-import { HNSWLib } from '@langchain/community/vectorstores/hnswlib'
-import { embeddings } from './embeddings'
-import { loadDocsFromFolder } from './chunker'
+import fs from "fs/promises"
+import { HNSWLib } from "@langchain/community/vectorstores/hnswlib"
+import { embeddings } from "./embeddings"
+import { Document } from "@langchain/core/documents"
 
 const vectorStore = await HNSWLib.fromDocuments([], embeddings)
 
-const docs = await loadDocsFromFolder()
+// Load your chunked laws
+const raw = await fs.readFile("./laws_web_chunks.json", "utf8")
+const data = JSON.parse(raw)
 
-console.log('docs are loaded')
+const docs: Document[] = data.map(
+  (d: any) =>
+    new Document({
+      pageContent: d.text,
+      metadata: d.metadata,
+    })
+)
 
-await vectorStore.addDocuments(docs)
+console.log("Docs loaded:", docs.length)
 
-console.log('done now saving')
+// ⚡ Replace single addDocuments with batching
+const BATCH_SIZE = 25
 
-await vectorStore.save('./vdb/')
+for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+  const batch = docs.slice(i, i + BATCH_SIZE)
+  console.log(`Embedding batch ${i + 1} -> ${i + batch.length}`)
+  await vectorStore.addDocuments(batch)
+}
+
+console.log("Saving vector DB...")
+await vectorStore.save("./vdb/")
+console.log("Done ✅")
