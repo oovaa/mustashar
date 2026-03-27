@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 import { answer } from './answer'
-import { sql } from './db'
+import { db } from './db'
+import { userMemories } from './schema'
+import { eq } from 'drizzle-orm'
 import { logger } from './logger'
 
 const botService = async (req: Request, res: Response) => {
@@ -23,7 +25,10 @@ const botService = async (req: Request, res: Response) => {
     // Handle /clear command
     if (userText === '/clear') {
       logger.info(`[${requestId}] user requested history clear`)
-      await sql`UPDATE user_memories SET summary = 'No history found', updated_at = NOW() WHERE chat_id = ${chat_id}`
+      await db
+        .update(userMemories)
+        .set({ summary: 'No history found' })
+        .where(eq(userMemories.chatId, chat_id))
       
       await fetch(
         `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
