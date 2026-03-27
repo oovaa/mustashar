@@ -13,6 +13,4 @@ COPY . .
 # Expose the port your Express app will run on
 EXPOSE 3000
 
-RUN bun db:push
-
 CMD ["bun", "start"]
