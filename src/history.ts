@@ -1,5 +1,7 @@
 import { createAgent, modelFallbackMiddleware } from 'langchain'
-import { sql } from './db'
+import { db } from './db'
+import { userMemories } from './schema'
+import { eq } from 'drizzle-orm'
 import { logger } from './logger'
 
 // ==========================================
@@ -49,10 +51,13 @@ export const agent_summrize = createAgent({
 export const getHistory = async (chat_id: string) => {
   logger.debug(`Fetching history for chat_id: ${chat_id}`)
   try {
-    const result = await sql`
-          SELECT summary FROM user_memories WHERE chat_id = ${chat_id}
-        `
-    return result[0]?.summary || 'No history found'
+    const result = await db
+      .select({ summary: userMemories.summary })
+      .from(userMemories)
+      .where(eq(userMemories.chatId, chat_id))
+      .limit(1)
+
+    return result[0]?.summary ?? 'No history found'
   } catch (error) {
     logger.error(`Failed to fetch history for chat ${chat_id}: ${error}`)
     return 'No history found'
@@ -96,11 +101,13 @@ export const updateHistory = async (
     logger.debug(`agent_summrize output:\n${updatedSummaryText}`)
 
     // 4. Upsert the new summary into the database
-    await sql`
-         INSERT INTO user_memories (chat_id, summary) 
-         VALUES (${chat_id}, ${updatedSummaryText})
-         ON CONFLICT (chat_id) DO UPDATE SET summary = ${updatedSummaryText}
-        `
+    await db
+      .insert(userMemories)
+      .values({ chatId: chat_id, summary: updatedSummaryText })
+      .onConflictDoUpdate({
+        target: userMemories.chatId,
+        set: { summary: updatedSummaryText },
+      })
 
     logger.debug(`Successfully updated history for chat: ${chat_id}`)
     return updatedSummaryText
