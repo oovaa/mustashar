@@ -46,11 +46,7 @@ RULES FOR STANDALONE QUESTIONS:
 - ANTI-LOOPING: Extract a MAXIMUM of 3 to 5 distinct, unique questions. 
 - Convert colloquial Arabic to Modern Standard Arabic
 - CRITICAL: DO NOT repeat questions. DO NOT answer the questions. Your only job is extraction.
-
-${responseSchema}
 `
-
-console.log(responseSchema.);
 
 
 export const agent_stand_alone = createAgent({
