@@ -2,8 +2,8 @@ import express from 'express'
 import botService from './botService'
 import { logger } from './logger'
 import { getHistory } from './history'
-import { answer } from './answer'
-import { sql } from './db'
+import { db } from './db'
+import { sql } from 'drizzle-orm'
 
 const app = express()
 app.use(express.json())
@@ -12,7 +12,7 @@ app.post('/webhook', botService)
 
 app.get('/check', async (req, res) => {
   try {
-    await sql`SELECT 1`
+    await db.execute(sql`SELECT 1`)
     res.send('Server and database are healthy!')
   } catch (error) {
     res.status(500).send('Database connection failed')
