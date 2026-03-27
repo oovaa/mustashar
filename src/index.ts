@@ -4,6 +4,7 @@ import { logger } from './logger'
 import { getHistory } from './history'
 import { answer } from './answer'
 import { sql } from './db'
+import { initMemoriesTable } from './create_db'
 
 const app = express()
 app.use(express.json())
@@ -50,6 +51,22 @@ app.post('/answer', async (req, res) => {
 })
 
 const port = 3000
-app.listen(port, () => {
-  logger.info(`Bot is running on port ${port}`)
-})
+
+async function start() {
+  // try to ensure DB table exists (retries while waiting for DB readiness)
+  for (let i = 0; i < 10; i++) {
+    try {
+      await initMemoriesTable()
+      break
+    } catch (err) {
+      logger.warn(`DB not ready yet, retrying (${i + 1}/10)`)
+      await new Promise((r) => setTimeout(r, 2000))
+    }
+  }
+
+  app.listen(port, () => {
+    logger.info(`Bot is running on port ${port}`)
+  })
+}
+
+start()
