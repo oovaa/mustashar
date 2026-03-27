@@ -2,9 +2,8 @@ import express from 'express'
 import botService from './botService'
 import { logger } from './logger'
 import { getHistory } from './history'
-import { answer } from './answer'
-import { sql } from './db'
-import { initMemoriesTable } from './create_db'
+import { db } from './db'
+import { sql } from 'drizzle-orm'
 
 const app = express()
 app.use(express.json())
@@ -13,7 +12,7 @@ app.post('/webhook', botService)
 
 app.get('/check', async (req, res) => {
   try {
-    await sql`SELECT 1`
+    await db.execute(sql`SELECT 1`)
     res.send('Server and database are healthy!')
   } catch (error) {
     res.status(500).send('Database connection failed')
@@ -51,22 +50,6 @@ app.post('/answer', async (req, res) => {
 })
 
 const port = 3000
-
-async function start() {
-  // try to ensure DB table exists (retries while waiting for DB readiness)
-  for (let i = 0; i < 10; i++) {
-    try {
-      await initMemoriesTable()
-      break
-    } catch (err) {
-      logger.warn(`DB not ready yet, retrying (${i + 1}/10)`)
-      await new Promise((r) => setTimeout(r, 2000))
-    }
-  }
-
-  app.listen(port, () => {
-    logger.info(`Bot is running on port ${port}`)
-  })
-}
-
-start()
+app.listen(port, () => {
+  logger.info(`Bot is running on port ${port}`)
+})
