@@ -36,7 +36,8 @@ CRITICAL LANGUAGE RULES:
 - If the user writes in Arabic, the ENTIRE summary MUST be in pure Arabic.
 - STRICTLY FORBIDDEN: Do not mix languages. Do not use English words like "landlord", "user", or "AI" if the text is Arabic (use "المؤجر", "المستخدم", "الذكاء الاصطناعي").
 - STRICTLY FORBIDDEN: ABSOLUTELY NO CHINESE or any other third language.
-- Your output must be 100% monolingual matching the user.`
+- Your output must be 100% monolingual matching the user.
+`
 
 export const agent_summrize = createAgent({
   model: 'cohere:command-a-03-2025',

@@ -6,7 +6,7 @@ import { logger } from './logger'
 const agent_stand_alone_fallback = modelFallbackMiddleware(
   'google-genai:gemma-3-27b-it',
   'groq:llama-3.1-8b-instant',
-  'cohere:command-r7b-12-2024',
+  'together:openai/gpt-oss-120b',
 )
 
 // 1. The Schema
@@ -45,7 +45,13 @@ RULES FOR STANDALONE QUESTIONS:
 - The language MUST be the exact same language that the user used.
 - ANTI-LOOPING: Extract a MAXIMUM of 3 to 5 distinct, unique questions. 
 - Convert colloquial Arabic to Modern Standard Arabic
-- CRITICAL: DO NOT repeat questions. DO NOT answer the questions. Your only job is extraction.`
+- CRITICAL: DO NOT repeat questions. DO NOT answer the questions. Your only job is extraction.
+
+${responseSchema}
+`
+
+console.log(responseSchema.);
+
 
 export const agent_stand_alone = createAgent({
   model: 'google-genai:gemini-2.5-flash',
