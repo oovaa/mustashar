@@ -31,8 +31,7 @@ services:
     volumes:
       # Keep your Vector DB files persistent on the VPS
       - ./src/rag/vdb:/app/src/rag/vdb
-    depends_on:
-      - db
+
 
 networks:
   bot-network:
