@@ -11,8 +11,8 @@ import { logger } from './logger'
 
 const agent_summrize_fallback = modelFallbackMiddleware(
   'together:MiniMaxAI/MiniMax-M2.5',
-  'cohere:command-r-plus-08-2024',
   'groq:openai/gpt-oss-120b',
+  'cohere:command-r-plus-08-2024',
 )
 
 // The Rolling Memory Prompt
