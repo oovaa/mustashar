@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import express from 'express'
 import botService from './botService'
 import { logger } from './logger'
@@ -26,8 +25,27 @@ app.get('/summary/:chatId', async (req, res) => {
     const history = await getHistory(chatId)
     res.json({ history })
   } catch (error) {
-    logger.error(`Error fetching summary for chat ${req.params.chatId}: ${error}`)
+    logger.error(
+      `Error fetching summary for chat ${req.params.chatId}: ${error}`,
+    )
     res.status(500).json({ error: 'Failed to fetch summary' })
+  }
+})
+
+app.post('/answer', async (req, res) => {
+  const { question, chatId } = req.body
+
+  if (!question || !chatId) {
+    res.status(400).send('Missing question or chatId')
+    return
+  }
+
+  try {
+    const result = await answer(question, chatId)
+    res.json({ answer: result })
+  } catch (error) {
+    logger.error(`Error processing answer for chat ${chatId}: ${error}`)
+    res.status(500).json({ error: 'Failed to answer question' })
   }
 })
 

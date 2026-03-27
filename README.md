@@ -83,12 +83,6 @@ bun run dev
 docker-compose up --build
 ```
 
-### Testing the Chain
-
-```bash
-bun run src/rag/test-chain.ts
-```
-
 ## API Endpoints
 
 ### Health Check

@@ -10,6 +10,12 @@ services:
       - "5432"
     volumes:
       - ./mustashar_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mustashar_admin -d mustashar_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     # DO NOT map 5432 to host ports. 
     # This keeps the DB invisible to the internet.
     networks:
@@ -25,12 +31,21 @@ services:
     environment:
       - DATABASE_URL=postgres://mustashar_admin:somepass@db:5432/mustashar_db
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    command: >
+      sh -c 'for i in 1 2 3 4 5; do
+        bun db:push && break;
+        echo "db:push failed, retrying in 3s...";
+        sleep 3;
+      done;
+      bun start'
     networks:
       - bot-network
     volumes:
       # Keep your Vector DB files persistent on the VPS
       - ./src/rag/vdb:/app/src/rag/vdb
+
 
 networks:
   bot-network:
