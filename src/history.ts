@@ -103,7 +103,7 @@ export const updateHistory = async (
     // 4. Upsert the new summary into the database
     await db
       .insert(userMemories)
-      .values({ chatId: chat_id, summary: updatedSummaryText })
+      .values({ chatId: chat_id, summary: updatedSummaryText, count: 1 })
       .onConflictDoUpdate({
         target: userMemories.chatId,
         set: { summary: updatedSummaryText },
