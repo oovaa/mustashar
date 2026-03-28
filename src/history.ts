@@ -1,7 +1,7 @@
 import { createAgent, modelFallbackMiddleware } from 'langchain'
 import { db } from './db'
 import { userMemories } from './schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { logger } from './logger'
 
 // ==========================================
@@ -101,13 +101,16 @@ export const updateHistory = async (
     ).trim()
     logger.debug(`agent_summrize output:\n${updatedSummaryText}`)
 
-    // 4. Upsert the new summary into the database
+    // 4. Upsert the new summary into the database, incrementing message count
     await db
       .insert(userMemories)
       .values({ chatId: chat_id, summary: updatedSummaryText, count: 1 })
       .onConflictDoUpdate({
         target: userMemories.chatId,
-        set: { summary: updatedSummaryText },
+        set: {
+          summary: updatedSummaryText,
+          count: sql`${userMemories.count} + 1`,
+        },
       })
 
     logger.debug(`Successfully updated history for chat: ${chat_id}`)
