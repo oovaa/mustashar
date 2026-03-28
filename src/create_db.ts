@@ -2,11 +2,14 @@ import { sql } from './db'
 
 export async function initMemoriesTable() {
   try {
-    const query = await sql`
+    await sql`
       CREATE TABLE IF NOT EXISTS user_memories (
-        chat_id TEXT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        role TEXT,
+        content TEXT,
         summary TEXT,
-        updated_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`
     console.log('user_memories table ready')
   } catch (error) {

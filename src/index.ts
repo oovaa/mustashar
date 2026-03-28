@@ -3,7 +3,9 @@ import botService from './botService'
 import { logger } from './logger'
 import { getHistory } from './history'
 import { db } from './db'
-import { sql } from 'drizzle-orm'
+import { sql, eq, sum } from 'drizzle-orm'
+import { userMemories } from './schema'
+import { answer } from './answer'
 
 const app = express()
 app.use(express.json())
@@ -46,6 +48,53 @@ app.post('/answer', async (req, res) => {
   } catch (error) {
     logger.error(`Error processing answer for chat ${chatId}: ${error}`)
     res.status(500).json({ error: 'Failed to answer question' })
+  }
+})
+
+app.get('/stats/users', async (_req, res) => {
+  try {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userMemories)
+    res.json({ users: Number(result[0]?.count ?? 0) })
+  } catch (error) {
+    logger.error(`Error fetching user count: ${error}`)
+    res.status(500).json({ error: 'Failed to fetch user count' })
+  }
+})
+
+app.get('/stats/messages', async (_req, res) => {
+  try {
+    const result = await db
+      .select({ total: sum(userMemories.count) })
+      .from(userMemories)
+    res.json({ messages: Number(result[0]?.total ?? 0) })
+  } catch (error) {
+    logger.error(`Error fetching total message count: ${error}`)
+    res.status(500).json({ error: 'Failed to fetch total message count' })
+  }
+})
+
+app.get('/stats/messages/:chatId', async (req, res) => {
+  try {
+    const { chatId } = req.params
+    const result = await db
+      .select({ count: userMemories.count })
+      .from(userMemories)
+      .where(eq(userMemories.chatId, chatId))
+      .limit(1)
+
+    if (result.length === 0) {
+      res.status(404).json({ error: 'Chat not found' })
+      return
+    }
+
+    res.json({ chatId, messages: result[0]?.count ?? 0 })
+  } catch (error) {
+    logger.error(
+      `Error fetching message count for chat ${req.params.chatId}: ${error}`,
+    )
+    res.status(500).json({ error: 'Failed to fetch message count' })
   }
 })
 
