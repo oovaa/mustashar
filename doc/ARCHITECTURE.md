@@ -306,7 +306,7 @@ The table is upserted (INSERT … ON CONFLICT DO UPDATE) on every `updateHistory
 Key details:
 - The `db` service is **not** exposed to the host network — only the `bot-network` bridge can reach it.
 - The `app` service waits for `db` to be healthy before starting, and runs `bun db:push` with retry logic to ensure the schema is applied.
-- `./src/rag/vdb` is bind-mounted into `/app/src/rag/vdb` so the vector index persists across container rebuilds.
+- `./vdb` is bind-mounted into `/app/vdb` so the vector index persists across container rebuilds.
 
 ### Dockerfile
 

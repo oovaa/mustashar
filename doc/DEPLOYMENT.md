@@ -52,10 +52,10 @@ Fill in all required values (see [Environment Variables Reference](#environment-
 
 ### 3. Prepare the vector database
 
-The `./src/rag/vdb/` directory must contain the HNSWLib index files before starting. If you have already built the index locally, copy it to the server:
+The `./vdb/` directory must contain the HNSWLib index files before starting. If you have already built the index locally, copy it to the server:
 
 ```bash
-scp -r ./src/rag/vdb/ user@your-server:/path/to/mustashar/src/rag/vdb/
+scp -r ./vdb/ user@your-server:/path/to/mustashar/vdb/
 ```
 
 Or build it on the server (requires API keys to be set):
@@ -262,7 +262,7 @@ The vector database (`./src/rag/vdb/`) must be present before the application st
 When using Docker Compose, these files are bind-mounted via:
 ```yaml
 volumes:
-  - ./src/rag/vdb:/app/src/rag/vdb
+  - ./vdb:/app/vdb
 ```
 
 This means the index persists across container rebuilds. To rebuild the index after adding new documents:
