@@ -5,6 +5,7 @@ import { getHistory } from './history'
 import { db } from './db'
 import { sql, eq, sum } from 'drizzle-orm'
 import { userMemories } from './schema'
+import { answer } from './answer'
 
 const app = express()
 app.use(express.json())
