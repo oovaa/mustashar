@@ -2,207 +2,263 @@
 
 ## Overview
 
-The Retrieval-Augmented Generation (RAG) system in Mustashar provides semantic search capabilities over Arabic legal documents. The system is designed to enhance legal question answering by retrieving relevant context from Sudanese law documents before generating responses.
+The Retrieval-Augmented Generation (RAG) system in Mustashar provides semantic search over Arabic legal documents. Before every legal answer is generated, the system retrieves the most relevant text chunks from the legal corpus and injects them as grounded context into the LLM prompt.
+
+The RAG pipeline is **fully integrated** into the answer flow (`src/answer.ts`) and runs automatically for every message that contains a legal question.
+
+---
 
 ## Architecture
 
-The RAG system consists of four main components:
+```
+User legal question
+        │
+        ▼
+┌───────────────────┐
+│  Stand-alone Q    │  src/stand_alone.ts
+│  decomposition    │  (1–5 focused sub-questions)
+└────────┬──────────┘
+         │  (per question)
+         ▼
+┌───────────────────┐
+│  Embed query      │  src/rag/embeddings.ts
+│  BAAI/bge-m3      │  (HuggingFace Inference API)
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│  HNSWLib search   │  src/rag/retriver.ts
+│  top-10 chunks    │  (loaded from ./vdb/)
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│  De-duplicate &   │  src/answer.ts
+│  merge context    │
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│  RAG answer agent │  Groq llama-3.3-70b (+ fallbacks)
+│  (strict prompt)  │
+└───────────────────┘
+```
 
-1. **Document Processing** (`chunker.ts`) - Loads and chunks legal documents
-2. **Embeddings** (`embeddings.ts`) - Converts text to vector representations
-3. **Vector Database** (`vdb.ts`) - Creates and manages the HNSWLib vector store
-4. **Retriever** (`retriver.ts`) - Provides semantic search functionality
+---
 
 ## Components
 
-### 1. Document Processing (`src/rag/chunker.ts`)
+### 1. Document Processing — `src/rag/chunker.ts`
 
-**Purpose**: Loads legal documents from the `./docs/` directory and splits them into manageable chunks for vectorization.
+Loads legal documents from the `./docs/` directory and splits them into chunks suitable for embedding.
 
-**Features**:
-- Supports PDF and text files (.txt, .md)
-- Recursive directory traversal
-- Configurable chunk size (1500 characters) with 200 character overlap
-- Metadata preservation (source file, page numbers for PDFs)
+**Supported formats:** PDF (`.pdf`), plain text (`.txt`), Markdown (`.md`)
 
-**Usage**:
+**Chunking parameters:**
+- Chunk size: **1 500 characters**
+- Overlap: **200 characters**
+- Splitter: `RecursiveCharacterTextSplitter` from `@langchain/textsplitters`
+
+**Metadata preserved per chunk:**
+- `source` — file path
+- `page` — PDF page number (PDFs only)
+
+**Usage:**
 ```typescript
-import { loadDocsFromFolder } from './chunker'
+import { loadDocsFromFolder } from './src/rag/chunker'
 
 const documents = await loadDocsFromFolder('./docs')
+// Returns Document[] ready for embedding
 ```
 
-**Document Types Supported**:
-- **PDFs**: Using LangChain's PDFLoader
-- **Text files**: Plain text and Markdown files
+---
 
-### 2. Embeddings (`src/rag/embeddings.ts`)
+### 2. Embeddings — `src/rag/embeddings.ts`
 
-**Purpose**: Converts text chunks into vector embeddings for semantic search.
+Converts text chunks (and query strings) into dense vector representations.
 
-**Configuration**:
-- **Model**: `Omartificial-Intelligence-Space/GATE-AraBert-v1` (Arabic-optimized BERT model)
-- **Provider**: HuggingFace Inference API
-- **API Key**: Uses `HF_API_KEY` or `HUGGINGFACEHUB_API_KEY` environment variable
+| Property | Value |
+|---|---|
+| Provider | HuggingFace Inference API |
+| Model | `BAAI/bge-m3` |
+| Environment variable | `HF_API_KEY` |
+| Multilingual | Yes — optimised for Arabic and 100+ languages |
 
-**Usage**:
+**Usage:**
 ```typescript
-import { embeddings } from './embeddings'
+import { embeddings } from './src/rag/embeddings'
 
-// Embed a single text
-const vector = await embeddings.embedQuery("النص العربي هنا")
+// Single query
+const vector = await embeddings.embedQuery('ما هو قانون الإيجار في السودان؟')
 
-// Embed multiple texts
-const vectors = await embeddings.embedDocuments(["نص 1", "نص 2"])
+// Batch documents
+const vectors = await embeddings.embedDocuments(['نص أول', 'نص ثانٍ'])
 ```
 
-### 3. Vector Database Creation (`src/rag/vdb.ts`)
+---
 
-**Purpose**: Builds the HNSWLib vector database from processed documents.
+### 3. Vector Database Builder — `src/rag/vdb.ts`
 
-**Process**:
-1. Initializes empty HNSWLib vector store
-2. Loads documents using the chunker
-3. Adds documents to vector store
-4. Saves the index to `./vdb/` directory
+One-time script that builds the HNSWLib vector index from the legal document corpus.
 
-**Usage**:
+**Process:**
+1. Initialise an empty `HNSWLib` store.
+2. Load and chunk documents via `loadDocsFromFolder()`.
+3. Embed all chunks and add them to the store.
+4. Persist the index to `./vdb/`.
+
+**Run:**
 ```bash
 bun run src/rag/vdb.ts
 ```
 
-**Output Files**:
-- `vdb/hnswlib.index` - The HNSWLib index
-- `vdb/docstore.json` - Document store metadata
-- `vdb/args.json` - Index configuration
+**Output files:**
 
-### 4. Retriever (`src/rag/retriver.ts`)
+| File | Contents |
+|---|---|
+| `vdb/hnswlib.index` | Binary HNSW graph index |
+| `vdb/docstore.json` | Document text and metadata |
+| `vdb/args.json` | Index configuration (dimensions, space) |
 
-**Purpose**: Provides semantic search functionality over the vector database.
+> **Re-indexing:** Re-run this script any time new documents are added to `./docs/`.
 
-**Features**:
-- Loads pre-built HNSWLib index
-- Creates a retriever with top-5 similarity search
-- Returns relevant document chunks for queries
+---
 
-**Usage**:
+### 4. Retriever — `src/rag/retriver.ts`
+
+Loads the pre-built HNSWLib index at startup and exposes a LangChain retriever interface.
+
+| Property | Value |
+|---|---|
+| Index path | `./vdb/` |
+| Results returned (`k`) | **10** most similar chunks |
+| Search type | Approximate nearest neighbour (HNSW) |
+
+**Usage:**
 ```typescript
-import { retriver } from './retriver'
+import { retriver } from './src/rag/retriver'
 
-// Search for relevant documents
-const results = await retriver.invoke("ما هي أحكام الطلاق في القانون السوداني؟")
+const chunks = await retriver.invoke('ما هي أحكام الطلاق في القانون السوداني؟')
+// Returns Document[] — each has .pageContent and .metadata
 ```
 
-## Setup and Configuration
+---
 
-### Prerequisites
+## Setup
 
-- HuggingFace API key for embeddings
-- Legal documents in `./docs/` directory
-- Node.js with native module support (for HNSWLib)
+### 1. Prepare Documents
 
-### Environment Variables
+Place Arabic legal documents (`.pdf`, `.txt`, or `.md`) in the `./docs/` directory. The documents used in production are:
+
+- `قانون_الاجراءات_المدنية_1983_معدلا_حتي_2019.txt`
+- `قانون_الاحوال_الشخصية_للمسلمين1991.txt`
+- `قانون المعاملات المدينة ١٩٨٤.txt`
+
+### 2. Set Environment Variables
 
 ```env
-HF_API_KEY=your_huggingface_api_key_here
+HF_API_KEY=your_huggingface_api_key
 ```
 
-### Building the Vector Database
-
-1. **Place documents** in the `./docs/` directory
-2. **Run the database builder**:
-   ```bash
-   bun run src/rag/vdb.ts
-   ```
-3. **Verify the index** is created in `./vdb/`
-
-### Testing the Retriever
+### 3. Build the Index
 
 ```bash
-bun run src/rag/retriver.ts
+bun run src/rag/vdb.ts
 ```
 
-This will perform a test search and display retrieved documents.
+### 4. Verify
 
-## Integration Status
+```bash
+ls -la vdb/
+# Should show: hnswlib.index  docstore.json  args.json
+```
 
-**Current Status**: The RAG components are fully implemented and functional, but not yet integrated into the main bot service.
+### 5. Test Retrieval
 
-**Future Integration**: To integrate RAG into the bot:
+```bash
+bun -e "
+import { retriver } from './src/rag/retriver';
+const docs = await retriver.invoke('حقوق المستأجر');
+console.log(docs.length, 'chunks retrieved');
+console.log(docs[0].pageContent.slice(0, 200));
+"
+```
 
-1. Import the retriever in `botService.ts`
-2. Use retriever to get relevant context before LLM generation
-3. Include retrieved documents in the prompt
+---
 
-**Example Integration**:
+## Integration Details
+
+The retriever is called inside `src/answer.ts` for every message classified as a legal question:
+
 ```typescript
-// In botService.ts
-import { retriver } from './rag/retriver'
+// src/answer.ts (simplified)
+for (const question of standaloneQuestions) {
+  const chunks = await retriever.invoke(question)
+  retrievedChunks.push(...chunks)
+}
 
-// Before LLM call
-const relevantDocs = await retriver.invoke(userText)
-const context = relevantDocs.map(doc => doc.pageContent).join('\n')
+// De-duplicate by page content
+const uniqueContext = Array.from(
+  new Set(retrievedChunks.map(c => c.pageContent.trim()))
+).join('\n\n')
 
-// Include in LLM prompt
-const finalAnswer = await assistanceLLM.invoke([
-  new SystemMessage(`Context: ${context}`),
-  new HumanMessage(`Summary: ${updatedSummary.content}. User: ${userText}`),
-])
+// Pass context to RAG answer agent via RAG_ANSWER_SYSTEM_PROMPT
 ```
 
-## Performance Considerations
+The RAG answer agent is instructed (via `RAG_ANSWER_SYSTEM_PROMPT` in `src/answerPrompts.ts`) to:
+- Answer **only** from the retrieved context.
+- Cite specific article numbers and law names.
+- State clearly when no relevant article is found.
 
-- **Chunk Size**: 800 characters with no overlap for legal text coherence
-- **Embedding Model**: Arabic-optimized model for better legal text understanding
-- **Vector Store**: HNSWLib provides fast approximate nearest neighbor search
-- **Memory Usage**: Index is loaded into memory for fast retrieval
+---
 
 ## File Structure
 
 ```
 src/rag/
 ├── chunker.ts      # Document loading and chunking
-├── embeddings.ts   # Text embedding configuration
-├── vdb.ts         # Vector database creation
-└── retriver.ts    # Semantic search retriever
+├── embeddings.ts   # HuggingFace embedding configuration
+├── vdb.ts          # One-time index builder script
+└── retriver.ts     # Runtime semantic search retriever
 
-vdb/               # Vector database files
+vdb/                # Generated vector database (bind-mounted in Docker)
 ├── hnswlib.index
 ├── docstore.json
 └── args.json
 
-docs/              # Source legal documents
-├── قانون_الاجراءات_المدنية_1983_معدلا_حتي_2019.txt
-├── قانون_الاحوال_الشخصية_للمسلمين1991.txt
-└── قانون المعاملات المدينة ١٩٨٤.txt
+docs/               # Source legal documents (gitignored)
 ```
 
-## Dependencies
+---
 
-- `@langchain/community` - HNSWLib vector store and HuggingFace embeddings
-- `@langchain/textsplitters` - Document chunking
-- `@langchain/core` - Document interfaces
-- `hnswlib-node` - Native HNSWLib bindings
+## Performance Notes
+
+- The HNSWLib index is **loaded into memory** on startup — queries are fast (milliseconds).
+- Chunk size of 1 500 characters balances coherence for long Arabic legal articles against embedding cost.
+- `k=10` retrieval per question, with de-duplication across multiple questions, provides broad coverage while keeping the context window manageable.
+- The `BAAI/bge-m3` model is multilingual and handles Arabic well without requiring a language-specific model.
+
+---
 
 ## Troubleshooting
 
-### Common Issues
+| Problem | Fix |
+|---|---|
+| `Error: cannot find module 'hnswlib-node'` | `bun install` or `npm rebuild hnswlib-node` |
+| `vdb/` files missing | Run `bun run src/rag/vdb.ts` |
+| Empty search results | Verify `docs/` contains files and the index was built after adding them |
+| HuggingFace 401 errors | Check `HF_API_KEY` in `.env` |
+| Out-of-memory during indexing | Reduce `chunkSize` in `chunker.ts` or process documents in batches |
 
-1. **Missing native bindings**: Run `npm rebuild hnswlib-node`
-2. **Embedding API errors**: Check HuggingFace API key
-3. **Empty search results**: Ensure vector database is built and documents exist
-4. **Memory issues**: Reduce chunk size or use smaller embedding model
+---
 
-### Debug Commands
+## Dependencies
 
-```bash
-# Check if vector database exists
-ls -la vdb/
-
-# Test embeddings
-bun -e "import { embeddings } from './src/rag/embeddings'; console.log(await embeddings.embedQuery('test'))"
-
-# Test document loading
-bun -e "import { loadDocsFromFolder } from './src/rag/chunker'; console.log((await loadDocsFromFolder()).length)"
-```</content>
+| Package | Role |
+|---|---|
+| `@langchain/community` | `HNSWLib` vector store + `HuggingFaceInferenceEmbeddings` |
+| `@langchain/textsplitters` | `RecursiveCharacterTextSplitter` |
+| `@langchain/core` | `Document` interface |
+| `@langchain/classic` | `TextLoader` for `.txt` / `.md` files |
+| `hnswlib-node` | Native HNSW bindings (requires C++ build tools) |</content>
 <parameter name="filePath">/home/omar/mustashar/RAG.md

@@ -1,138 +1,226 @@
-# Mustashar
+# Mustashar (مستشار)
 
-A Telegram bot and web API that provides legal information using Retrieval-Augmented Generation (RAG) technology. The system uses Arabic legal documents to answer questions about Sudanese law and related topics.
+**Mustashar** is an AI-powered Telegram bot and REST API that provides legal guidance on Sudanese law. It combines Retrieval-Augmented Generation (RAG) over Arabic legal documents with a rolling-summary memory system so every conversation is context-aware.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Answer Pipeline](#answer-pipeline)
+- [Architecture Overview](#architecture-overview)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Vector Database Setup](#vector-database-setup)
+- [API Reference](#api-reference)
+- [Commands](#commands)
+- [Development](#development)
+- [Deployment](#deployment)
+- [Documentation](#documentation)
+
+---
 
 ## Features
 
-- **Telegram Bot**: Interactive chatbot for legal questions with memory
-- **Web API**: REST API endpoint for Telegram webhook
-- **RAG System**: Vector search with HNSWLib and Groq LLM for accurate answers
-- **Arabic Support**: Specialized for Arabic legal text processing
-- **Memory System**: Uses PostgreSQL to maintain conversation summaries
-- **Docker Support**: Easy deployment with Docker Compose
+| Feature | Description |
+|---|---|
+| **Telegram Bot** | Interactive chatbot for legal questions with per-user conversation memory |
+| **REST API** | Express.js endpoints for the webhook and direct question answering |
+| **RAG System** | Semantic search over Arabic legal documents using HNSWLib + HuggingFace embeddings |
+| **Multi-LLM fallback** | Primary models with automatic fallback chains (Together AI → Groq → Cohere → Google GenAI) |
+| **Rolling Memory** | Conversation summaries stored in PostgreSQL; updated after every turn |
+| **Arabic-first** | Fully optimised for Arabic legal text — MSA output enforced by system prompts |
+| **Docker** | One-command deployment via Docker Compose with a managed PostgreSQL container |
+
+---
 
 ## Answer Pipeline
 
-The main answer flow is implemented in `/src/answer.ts`:
+The full answer flow lives in `src/answer.ts` and is called by `src/botService.ts` for every user message.
 
-1. Analyze the user message into:
-   - conversational message, or
-   - legal question flow with standalone questions.
-2. If it is conversational, answer directly with chat-history-aware prompt.
-3. If it is a legal question flow, run retrieval for each standalone question, collect chunks, de-duplicate context, and answer with a strict RAG prompt.
-4. After answering in both branches, update and store rolling chat summary in `user_memories`.
+```
+User message
+     │
+     ▼
+┌─────────────────────────────┐
+│  1. Load rolling summary    │  (src/history.ts → PostgreSQL)
+└────────────┬────────────────┘
+             │
+             ▼
+┌─────────────────────────────┐
+│  2. Classify & decompose    │  (src/stand_alone.ts → Gemini 2.5 Flash)
+│     • conversational?       │
+│     • 1-5 standalone Qs?    │
+└────────────┬────────────────┘
+             │
+     ┌───────┴───────┐
+     │               │
+     ▼               ▼
+Conversational   Legal Question(s)
+     │               │
+     │               ▼
+     │     ┌──────────────────────┐
+     │     │ 3. RAG retrieval     │  (src/rag/retriver.ts → HNSWLib)
+     │     │    per question,     │
+     │     │    de-duplicate      │
+     │     └──────────┬───────────┘
+     │                │
+     ▼                ▼
+┌──────────────────────────────┐
+│  4. Generate answer          │  (LLM with system prompt)
+│  • Chat prompt (no RAG)      │
+│  • RAG prompt (with context) │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│  5. Update rolling summary   │  (Cohere → PostgreSQL upsert)
+└──────────────────────────────┘
+```
 
-`/src/botService.ts` now delegates this full flow to `answer(userText, chat_id)` to keep memory update and retrieval behavior consistent.
+---
 
-## Documentation
+## Architecture Overview
 
-- **[RAG System Documentation](RAG.md)** - Detailed documentation for the Retrieval-Augmented Generation components
+| Layer | Technology |
+|---|---|
+| **Bot interface** | Telegram Bot API |
+| **Web framework** | Express.js 5 + TypeScript (Bun runtime) |
+| **Answer agents** | LangChain `createAgent` + `modelFallbackMiddleware` |
+| **Primary LLMs** | Together AI (Qwen3.5-397B), Groq (Llama-3.3-70b), Cohere (command-a-03-2025), Gemini 2.5 Flash |
+| **Embeddings** | HuggingFace Inference API — `BAAI/bge-m3` |
+| **Vector store** | HNSWLib (file-based, loaded into memory) |
+| **Database** | PostgreSQL via Drizzle ORM |
+| **Logging** | Winston + daily-rotate-file |
+| **Containerisation** | Docker & Docker Compose |
 
-## Setup
+For a deeper dive see [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md).
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js (v18 or higher) or Bun
-- Docker and Docker Compose
-- PostgreSQL database (for user memory)
+- [Bun](https://bun.sh/) ≥ 1.0 (or Node.js ≥ 18)
+- Docker & Docker Compose
+- API keys — see [Environment Variables](#environment-variables)
 
 ### Installation
 
 ```bash
-npm install
-# or
 bun install
 ```
 
 ### Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file at the project root:
 
 ```env
-GROQ_API_KEY=your_groq_api_key_here
-BOT_TOKEN=your_telegram_bot_token_here
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-HF_API_KEY=your_huggingface_api_key_here
+# Telegram
+BOT_TOKEN=your_telegram_bot_token
+
+# LLM providers
+GROQ_API_KEY=your_groq_api_key
+TOGETHER_API_KEY=your_together_ai_key
+COHERE_API_KEY=your_cohere_api_key
+GOOGLE_API_KEY=your_google_genai_key
+
+# Embeddings
+HF_API_KEY=your_huggingface_api_key
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/mustashar_db
+
+# Logging (optional, default: info)
+LOG_LEVEL=info
 ```
 
-### Vector Database Setup
+> **Tip:** When deploying with Docker Compose the `DATABASE_URL` is injected automatically; you do not need to set it in `.env`.
 
-The system uses HNSWLib for vector storage. The vector database is stored locally in the `./vdb/` directory and should be pre-indexed with Arabic legal documents.
+---
 
-To build the vector database:
+## Vector Database Setup
+
+The RAG system needs a pre-built HNSWLib vector index.
+
+1. Place Arabic legal documents (`.pdf`, `.txt`, `.md`) in the `./docs/` directory.
+2. Build the index:
 
 ```bash
 bun run src/rag/vdb.ts
 ```
 
-This will load documents from `./docs/`, chunk them, and create the vector index.
+3. The index is written to `./vdb/` (`hnswlib.index`, `docstore.json`, `args.json`).
+
+See [`RAG.md`](RAG.md) for full details on the RAG pipeline.
+
+---
+
+## API Reference
+
+The server listens on **port 3000**. Full request/response examples are in [`doc/API.md`](doc/API.md).
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/check` | Health check — verifies DB connectivity |
+| `POST` | `/webhook` | Telegram webhook receiver |
+| `POST` | `/answer` | Direct question answering (REST clients) |
+| `GET` | `/summary/:chatId` | Retrieve rolling summary for a chat |
+| `GET` | `/stats/users` | Total number of unique users |
+| `GET` | `/stats/messages` | Total messages across all users |
+| `GET` | `/stats/messages/:chatId` | Message count for a specific chat |
+
+---
+
+## Commands
+
+Users can send the following commands to the Telegram bot:
+
+| Command | Description |
+|---|---|
+| `/clear` | Wipe conversation memory and start fresh |
+
+---
 
 ## Development
 
-### Running Locally
-
 ```bash
-npm run dev
-# or
+# Start with hot-reload
 bun run dev
+
+# Push DB schema changes
+bun run db:push
+
+# Generate Drizzle migrations
+bun run db:generate
 ```
 
-### Running with Docker
-
-```bash
-docker-compose up --build
-```
-
-## API Endpoints
-
-### Health Check
-
-```
-GET /check
-```
-
-### Telegram Webhook
-
-```
-POST /
-Content-Type: application/json
-
-{
-  "message": {
-    "chat": {
-      "id": "123456789"
-    },
-    "text": "ما هو القانون الخاص بالعمل في السودان؟"
-  }
-}
-```
-
-The bot will process the message, update user memory, and respond via Telegram.
+---
 
 ## Deployment
 
-### Docker Deployment
+### Docker (recommended)
 
 ```bash
 docker-compose up -d --build
 ```
 
-The application will be available at `http://localhost:3000`.
+This starts both the application and a PostgreSQL container. The app is available at `http://localhost:3000`.
 
-### Cloudflare Workers (Alternative)
+The vector database files in `./src/rag/vdb` are bind-mounted into the container so the index persists across container restarts.
 
-If you prefer serverless deployment:
+For a detailed deployment guide see [`doc/DEPLOYMENT.md`](doc/DEPLOYMENT.md).
 
-```bash
-npm run deploy
-```
+---
 
-## Architecture
+## Documentation
 
-- **Frontend**: Telegram Bot API
-- **Backend**: Express.js with TypeScript
-- **Vector Database**: HNSWLib (file-based)
-- **User Memory**: PostgreSQL
-- **LLM**: Groq API (Llama models)
-- **Embeddings**: HuggingFace Inference API (Arabic BERT model)
-- **Containerization**: Docker & Docker Compose
+| File | Contents |
+|---|---|
+| [`README.md`](README.md) | This file — overview & quick start |
+| [`RAG.md`](RAG.md) | RAG pipeline deep-dive |
+| [`doc/API.md`](doc/API.md) | Full API reference with examples |
+| [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md) | System architecture & component design |
+| [`doc/DEPLOYMENT.md`](doc/DEPLOYMENT.md) | Step-by-step deployment guide |
+| [`doc/CONTRIBUTING.md`](doc/CONTRIBUTING.md) | How to contribute |
