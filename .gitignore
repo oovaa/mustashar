@@ -37,3 +37,4 @@ docs/*
 drizzle
 
 bun.lock
+test.ts
