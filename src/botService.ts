@@ -9,7 +9,6 @@ const botService = async (req: Request, res: Response) => {
   const requestId = Math.random().toString(36).substring(7);
   logger.info(`[${requestId}] Webhook request received`);
 
-  res.status(200).send('OK');
   let chat_id: string | undefined
 
   try {
