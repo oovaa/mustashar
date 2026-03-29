@@ -9,6 +9,9 @@ const botService = async (req: Request, res: Response) => {
   const requestId = Math.random().toString(36).substring(7);
   logger.info(`[${requestId}] Webhook request received`);
 
+  // Telegram only needs an ACK for webhook delivery.
+  res.status(200).send('OK')
+
   let chat_id: string | undefined
 
   try {
@@ -20,8 +23,7 @@ const botService = async (req: Request, res: Response) => {
 
     if (!chat_id || !userText) {
       logger.warn(`[${requestId}] Missing chat_id or userText.`);
-      // Use return to stop execution
-      return res.status(200).send({ message: "chat id and message are required" });
+      return
     }
 
     // Handle /clear command
@@ -43,7 +45,7 @@ const botService = async (req: Request, res: Response) => {
           }),
         },
       )
-      return res.send('Ok')
+      return
     }
 
     // Optimization: Table creation should ideally be in a separate migration/init file, 
@@ -63,7 +65,10 @@ const botService = async (req: Request, res: Response) => {
     )
 
     logger.info(`[${requestId}] Response sent successfully`)
-    return res.send({ answer: finalAnswer })
+    console.log(finalAnswer);
+
+    return
+
 
   } catch (error: any) {
     logger.error(`[${requestId || 'unknown'}] Internal server error: ${error.message || error}`)
@@ -86,10 +91,7 @@ const botService = async (req: Request, res: Response) => {
       }
     }
 
-    // Check if headers already sent to avoid double-response errors
-    if (!res.headersSent) {
-      return res.status(500).json({ error: 'حدث خطأ داخلي في الخادم.' })
-    }
+    return
   }
 }
 
