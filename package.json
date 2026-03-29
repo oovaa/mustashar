@@ -2,6 +2,7 @@
   "name": "mustashar",
   "dependencies": {
     "@huggingface/inference": "^4.13.15",
+    "@langchain/cerebras": "^1.0.4",
     "@langchain/cohere": "^1.0.4",
     "@langchain/community": "^1.1.24",
     "@langchain/core": "^1.1.34",

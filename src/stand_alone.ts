@@ -4,9 +4,9 @@ import { logger } from './logger'
 
 // 1. Standalone Question Agent
 const agent_stand_alone_fallback = modelFallbackMiddleware(
-  'google-genai:gemma-3-27b-it',
-  'together:openai/gpt-oss-120b',
   'mistral:mistral-large-latest',
+  'together:openai/gpt-oss-120b',
+  'google-genai:gemma-3-27b-it',
 )
 
 // 1. The Schema
