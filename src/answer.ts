@@ -9,7 +9,7 @@ import { retriver as retriever } from './rag/retriver'
 import { logger } from './logger'
 
 const agent_answer_fallback = modelFallbackMiddleware(
-  'together:moonshotai/Kimi-K2.5',
+  'cerebras:qwen-3-235b-a22b-instruct-2507',
   'groq:llama-3.3-70b-versatile',
   'together:zai-org/GLM-5',
 )
