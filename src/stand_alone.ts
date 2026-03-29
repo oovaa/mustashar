@@ -5,8 +5,8 @@ import { logger } from './logger'
 // 1. Standalone Question Agent
 const agent_stand_alone_fallback = modelFallbackMiddleware(
   'google-genai:gemma-3-27b-it',
-  'groq:llama-3.1-8b-instant',
   'together:openai/gpt-oss-120b',
+  'groq:llama-3.1-8b-instant',
 )
 
 // 1. The Schema
@@ -31,20 +31,25 @@ const responseSchema = z.object({
 // 2. The Strict System Prompt (Added Anti-Looping Rules)
 const SYSTEM_PROMPT = `You are an expert legal query analyzer. Your strict task is to classify and deconstruct user messages.
 
-1. CLASSIFY: Determine if the message contains a legal inquiry/scenario or if it is general conversation (e.g., greetings, casual remarks, thanks). Set \`has_question\` to true or false.
+1. CLASSIFY: Determine if the message contains a legal inquiry/scenario or if it is strictly general conversation. 
+   - CRITICAL RULE: Users often start with greetings (e.g., "السلام عليكم"). You MUST read the ENTIRE message. If there is a legal story, scenario, or question ANYWHERE in the text after the greeting, you MUST set \`has_question\` to true.
+   - Set \`has_question\` to false ONLY if the ENTIRE message is just a greeting or thank you.
+
 2. PROCESS GENERAL (has_question: false): 
    - Pass the user's exact original text into the \`message\` field.
    - Set \`stand_alone_questions_array\` to an empty array [].
+
 3. PROCESS LEGAL (has_question: true): 
    - Pass the user's exact original text into the \`message\` field.
-   - Break the inquiry down into a concise list of standalone sub-questions (\`stand_alone_questions_array\`).
+   - Break the legal scenario down into a concise list of standalone legal sub-questions (\`stand_alone_questions_array\`).
 
 RULES FOR STANDALONE QUESTIONS:
+- If the user explains a scenario but doesn't explicitly ask a question with a question mark, formulate the implied legal questions based on their situation.
 - Break complex scenarios down into single, focused legal questions.
-- Resolve all pronouns and implied context using the provided CHAT HISTORY. Every question MUST make complete sense on its own.
+- Resolve all pronouns (e.g., "my husband", "he") and implied context using the provided CHAT HISTORY so each question makes complete sense on its own.
 - The language MUST be the exact same language that the user used.
+- Convert colloquial Arabic to Modern Standard Arabic (الفصحى).
 - ANTI-LOOPING: Extract a MAXIMUM of 3 to 5 distinct, unique questions. 
-- Convert colloquial Arabic to Modern Standard Arabic
 - CRITICAL: DO NOT repeat questions. DO NOT answer the questions. Your only job is extraction.
 `
 
