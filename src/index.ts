@@ -10,6 +10,11 @@ import { answer } from './answer'
 const app = express()
 app.use(express.json())
 
+if (!process.env.BOT_TOKEN) {
+  logger.error('CRITICAL: BOT_TOKEN is missing in environment variables.');
+  process.exit(1);
+}
+
 app.post('/webhook', botService)
 
 app.get('/check', async (req, res) => {

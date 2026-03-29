@@ -76,19 +76,17 @@ const answer = async (
   logger.info(
     `${logPrefix}Route: Legal Question RAG. Processing ${standaloneQuestions.length} questions.`,
   )
-  const retrievedChunks: Array<{ pageContent: string }> = []
-  for (const standAloneQuestion of standaloneQuestions) {
-    logger.debug(`${logPrefix}Retrieving for question: "${standAloneQuestion}"`)
-    const chunks = await retriever.invoke(standAloneQuestion)
-    logger.debug(
-      `${logPrefix}Found ${chunks?.length || 0} chunks for question.`,
-    )
+  const searchPromises = standaloneQuestions.map((q) => retriever.invoke(q));
+  const resultsArray = await Promise.all(searchPromises);
+
+  const retrievedChunks: Array<{ pageContent: string }> = [];
+  resultsArray.forEach((chunks) => {
     for (const chunk of chunks || []) {
       if (chunk?.pageContent) {
-        retrievedChunks.push({ pageContent: chunk.pageContent })
+        retrievedChunks.push({ pageContent: chunk.pageContent });
       }
     }
-  }
+  })
 
   const uniqueContext = Array.from(
     new Set(retrievedChunks.map((chunk) => chunk.pageContent.trim())),
