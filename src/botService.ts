@@ -10,10 +10,11 @@ const botService = async (req: Request, res: Response) => {
   logger.info(`[${requestId}] Webhook request received`);
 
   res.status(200).send('OK');
+  let chat_id: string | undefined
 
   try {
     const update = req.body
-    const chat_id = update.message?.chat?.id?.toString() // Added optional chaining
+    chat_id = update.message?.chat?.id?.toString() // Added optional chaining
     const userText = update.message?.text
 
     logger.debug(`[${requestId}] chatid: ${chat_id} message: ${userText}\n body: ${JSON.stringify({ update })}`)
@@ -66,8 +67,25 @@ const botService = async (req: Request, res: Response) => {
     return res.send({ answer: finalAnswer })
 
   } catch (error: any) {
-    // Fixed the syntax error here
     logger.error(`[${requestId || 'unknown'}] Internal server error: ${error.message || error}`)
+
+    if (chat_id) {
+      try {
+        await fetch(
+          `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id,
+              text: 'عذراً، البوت يواجه ضغطاً كبيراً في الوقت الحالي. يرجى المحاولة مرة أخرى لاحقاً 🙏',
+            }),
+          },
+        )
+      } catch (sendError: any) {
+        logger.error(`[${requestId || 'unknown'}] Failed to send error message to user: ${sendError.message || sendError}`)
+      }
+    }
 
     // Check if headers already sent to avoid double-response errors
     if (!res.headersSent) {
