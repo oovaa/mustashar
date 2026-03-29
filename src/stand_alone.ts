@@ -6,7 +6,7 @@ import { logger } from './logger'
 const agent_stand_alone_fallback = modelFallbackMiddleware(
   'google-genai:gemma-3-27b-it',
   'together:openai/gpt-oss-120b',
-  'groq:llama-3.1-8b-instant',
+  'mistral:mistral-large-latest',
 )
 
 // 1. The Schema
