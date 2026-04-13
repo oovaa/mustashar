@@ -10,7 +10,7 @@ import { logger } from './logger'
 // ==========================================
 
 const agent_summrize_fallback = modelFallbackMiddleware(
-  'together:MiniMaxAI/MiniMax-M2.5',
+  'together:MiniMaxAI/MiniMax-M2.7',
   'groq:openai/gpt-oss-120b',
   'cohere:command-r-plus-08-2024',
 )
