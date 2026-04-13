@@ -11,7 +11,7 @@ import { logger } from './logger'
 const agent_answer_fallback = modelFallbackMiddleware(
   'cerebras:qwen-3-235b-a22b-instruct-2507',
   'groq:llama-3.3-70b-versatile',
-  'together:zai-org/GLM-5',
+  'together:zai-org/GLM-5.1',
 )
 
 /**
