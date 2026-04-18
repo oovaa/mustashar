@@ -48,67 +48,76 @@ const botService = async (req: Request, res: Response) => {
   // Acknowledge the webhook immediately so Telegram does not retry this update.
   res.status(200).send({ message: 'ok' })
 
-  // Process the message asynchronously after responding.
-  ;(async () => {
-    try {
-      // Handle /clear command
-      if (userText === '/clear') {
-        logger.info(`[${requestId}] user requested history clear`)
-        await db
-          .update(userMemories)
-          .set({ summary: 'No history found' })
-          .where(eq(userMemories.chatId, chat_id))
-
-        await fetch(
-          `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id,
-              text: 'تم مسح الذاكرة بنجاح، سأبدأ الآن معك صفحة جديدة ✅',
-            }),
-          },
-        )
-        return
-      }
-
-      logger.info(`[${requestId}] Processing user request via answer pipeline...`)
-      const finalAnswer = await answer(userText, chat_id, requestId)
-
-      logger.debug(`[${requestId}] Sending response to Telegram...`)
-      await fetch(
-        `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id, text: finalAnswer }),
-        }
-      )
-
-      logger.info(`[${requestId}] Response sent successfully`)
-    } catch (error: any) {
-      logger.error(`[${requestId}] Internal server error: ${error.message || error}`)
-
+    // Process the message asynchronously after responding.
+    ; (async () => {
       try {
+        // Handle /clear command
+        if (userText === '/clear') {
+          logger.info(`[${requestId}] user requested history clear`)
+          await db
+            .update(userMemories)
+            .set({ summary: 'No history found' })
+            .where(eq(userMemories.chatId, chat_id))
+
+          await fetch(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id,
+                text: 'تم مسح الذاكرة بنجاح، سأبدأ الآن معك صفحة جديدة ✅',
+              }),
+            },
+          )
+          return
+        }
+
+        return await fetch(
+          `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id, text: "البوت متوقف للصيانة سنعود قريبا 😅" }),
+          }
+        )
+
+        logger.info(`[${requestId}] Processing user request via answer pipeline...`)
+        const finalAnswer = await answer(userText!, chat_id!, requestId)
+
+        logger.debug(`[${requestId}] Sending response to Telegram...`)
         await fetch(
           `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id,
-              text: 'عذراً، البوت يواجه ضغطاً كبيراً في الوقت الحالي. يرجى المحاولة مرة أخرى لاحقاً 🙏',
-            }),
-          },
+            body: JSON.stringify({ chat_id, text: finalAnswer }),
+          }
         )
-      } catch (sendError: any) {
-        logger.error(`[${requestId}] Failed to send error message to user: ${sendError.message || sendError}`)
+
+        logger.info(`[${requestId}] Response sent successfully`)
+      } catch (error: any) {
+        logger.error(`[${requestId}] Internal server error: ${error.message || error}`)
+
+        try {
+          await fetch(
+            `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id,
+                text: 'عذراً، البوت يواجه ضغطاً كبيراً في الوقت الحالي. يرجى المحاولة مرة أخرى لاحقاً 🙏',
+              }),
+            },
+          )
+        } catch (sendError: any) {
+          logger.error(`[${requestId}] Failed to send error message to user: ${sendError.message || sendError}`)
+        }
       }
-    }
-  })().catch((err: any) => {
-    logger.error(`[${requestId}] Unhandled error in async processing: ${err.message || err}`)
-  })
+    })().catch((err: any) => {
+      logger.error(`[${requestId}] Unhandled error in async processing: ${err.message || err}`)
+    })
 }
 
 export default botService
