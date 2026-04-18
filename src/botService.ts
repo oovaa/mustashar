@@ -44,8 +44,8 @@ const botService = async (req: Request, res: Response) => {
 
   const update = req.body
   const updateId: number | undefined = update.update_id
-  const chat_id: string | undefined = update.message?.chat?.id?.toString()
-  const userText: string | undefined = update.message?.text
+  const chat_id: string | undefined = update.message?.chat?.id?.toString() || update.chat_id
+  const userText: string | undefined = update.message?.text || update.userText
 
   logger.debug(`[${requestId}] chatid: ${chat_id} message: ${userText}\n body: ${JSON.stringify({ update })}`)
 
