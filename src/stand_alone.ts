@@ -74,7 +74,7 @@ export const agent_stand_alone = createAgent({
 })
 
 /**
- * Analyses a user message to classify it and extract standalone legal questions.
+ * Analyzes a user message to classify it and extract standalone legal questions.
  *
  * The full chat history context is included in the prompt so the agent can
  * resolve pronouns and implicit references against prior conversation turns.
