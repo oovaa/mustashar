@@ -1,8 +1,9 @@
 -- Initializes user_memories table on first database creation
 CREATE TABLE IF NOT EXISTS user_memories (
-  id SERIAL PRIMARY KEY,
-  chat_id TEXT NOT NULL,
-  role TEXT,
-  content TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  chat_id       TEXT PRIMARY KEY,
+  summary       TEXT NOT NULL DEFAULT 'No history found',
+  last_message  TEXT,
+  last_response TEXT,
+  count         INTEGER DEFAULT 0,
+  updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );

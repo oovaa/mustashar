@@ -5,18 +5,22 @@ import { eq, sql } from 'drizzle-orm'
 import { logger } from './logger'
 
 // ==========================================
-// 3. SUMMARIZE AGENT (Rolling Memory Manager)
+// SUMMARIZE AGENT (Rolling Memory Manager)
 // Primary: Cohere's latest flagship for heavy document processing.
+// Fallback chain ensures availability even when the primary model is rate-limited.
 // ==========================================
 
+/** Fallback model chain for the summarizer agent. */
 const agent_summrize_fallback = modelFallbackMiddleware(
   'together:MiniMaxAI/MiniMax-M2.7',
   'groq:openai/gpt-oss-120b',
   'cohere:command-r-plus-08-2024',
 )
 
-// The Rolling Memory Prompt
-// The Strict Rolling Memory Prompt
+/**
+ * System prompt that instructs the summarizer agent to produce a concise,
+ * language-matched, rolling summary of the conversation.
+ */
 const SUMMARIZE_SYSTEM_PROMPT = `You are an expert AI conversation memory manager. Your task is to maintain a concise, running summary of a chat history.
 
 You will receive:
@@ -39,6 +43,7 @@ CRITICAL LANGUAGE RULES:
 - Your output must be 100% monolingual matching the user.
 `
 
+/** Pre-configured summarizer agent instance with its fallback middleware attached. */
 export const agent_summrize = createAgent({
   model: 'cohere:command-a-03-2025',
   middleware: [agent_summrize_fallback],
@@ -49,22 +54,73 @@ export const agent_summrize = createAgent({
 // DATABASE MEMORY FUNCTIONS
 // ==========================================
 
+/**
+ * Retrieves the stored conversation context for a given chat.
+ *
+ * Returns a formatted string that includes:
+ *  - The rolling summary of the full conversation.
+ *  - The verbatim last user message and AI response (when available).
+ *
+ * This combined context is passed directly into AI prompts so the model
+ * has both high-level history and the most recent exchange.
+ *
+ * Falls back to `"No history found"` on any DB error.
+ *
+ * @param chat_id - Unique identifier for the chat session.
+ * @returns Formatted history context string.
+ */
 export const getHistory = async (chat_id: string) => {
   logger.debug(`Fetching history for chat_id: ${chat_id}`)
   try {
     const result = await db
-      .select({ summary: userMemories.summary })
+      .select({
+        summary: userMemories.summary,
+        lastMessage: userMemories.lastMessage,
+        lastResponse: userMemories.lastResponse,
+      })
       .from(userMemories)
       .where(eq(userMemories.chatId, chat_id))
       .limit(1)
 
-    return result[0]?.summary ?? 'No history found'
+    const row = result[0]
+
+    // No record yet — return the default sentinel value.
+    if (!row) return 'No history found'
+
+    const { summary, lastMessage, lastResponse } = row
+
+    // Build the combined context block.
+    // Always include the rolling summary; append the last interaction only
+    // when both sides of the exchange have been recorded.
+    let context = `ROLLING SUMMARY:\n${summary}`
+
+    if (lastMessage && lastResponse) {
+      context += `\n\nLATEST INTERACTION:\nUser: ${lastMessage}\nAI: ${lastResponse}`
+    }
+
+    return context
   } catch (error) {
     logger.error(`Failed to fetch history for chat ${chat_id}: ${error}`)
     return 'No history found'
   }
 }
 
+/**
+ * Generates an updated rolling summary and persists the full interaction to the DB.
+ *
+ * Steps:
+ *  1. Fetch the existing history context for the chat.
+ *  2. Build a structured payload for the summarizer agent.
+ *  3. Invoke the summarizer to produce a new, blended summary.
+ *  4. Upsert the new summary, verbatim last message/response, and incremented
+ *     interaction count back into the database.
+ *
+ * @param message  - The user's message text.
+ * @param response - The AI's reply text.
+ * @param chat_id  - Unique identifier for the chat session.
+ * @returns The newly generated summary text.
+ * @throws Re-throws any DB or agent error after logging it.
+ */
 export const updateHistory = async (
   message: string,
   response: string,
@@ -74,10 +130,10 @@ export const updateHistory = async (
     `Updating history for chat_id: ${chat_id}. Message len: ${message.length}, Response len: ${response.length}`,
   )
   try {
-    // 1. Fetch the existing history
+    // 1. Fetch the existing history context (summary + last interaction).
     const oldHistory = await getHistory(chat_id)
 
-    // 2. Format the payload for the summarizer agent
+    // 2. Format the payload for the summarizer agent.
     const summaryPayload = `
       OLD SUMMARY:
       ${oldHistory}
@@ -89,26 +145,32 @@ export const updateHistory = async (
       ${response}
     `
 
-    // 3. Generate the new updated summary
+    // 3. Generate the new updated summary via the rolling-memory agent.
     logger.debug(`Generating summary via agent for chat_id: ${chat_id}`)
     logger.debug(`Invoking agent_summrize. Input Payload:\n${summaryPayload}`)
     const aiResponse = await agent_summrize.invoke({ messages: summaryPayload })
-    // LangChain text responses are usually in aiResponse.content or aiResponse.text depending on the wrapper, assuming .content here:
-    // console.log('Ai summary response:\n', aiResponse.messages.at(1)?.content)
 
     const updatedSummaryText = String(
       aiResponse.messages.at(-1)?.content,
     ).trim()
     logger.debug(`agent_summrize output:\n${updatedSummaryText}`)
 
-    // 4. Upsert the new summary into the database, incrementing message count
+    // 4. Upsert: store the new summary, verbatim last interaction, and bump count.
     await db
       .insert(userMemories)
-      .values({ chatId: chat_id, summary: updatedSummaryText, count: 1 })
+      .values({
+        chatId: chat_id,
+        summary: updatedSummaryText,
+        lastMessage: message,
+        lastResponse: response,
+        count: 1,
+      })
       .onConflictDoUpdate({
         target: userMemories.chatId,
         set: {
           summary: updatedSummaryText,
+          lastMessage: message,
+          lastResponse: response,
           count: sql`${userMemories.count} + 1`,
         },
       })
@@ -125,6 +187,7 @@ export const updateHistory = async (
 // TEST FUNCTION
 // ==========================================
 
+/** Smoke-tests the Arabic summarizer against a multi-step simulated conversation. */
 export async function testArabicSummarizer() {
   const testChatId = 'test-chat-arabic-001'
 
@@ -163,7 +226,7 @@ export async function testArabicSummarizer() {
       )
 
       logger.info(`✅ NEW DATABASE SUMMARY:`)
-      logger.info(newSummary) // Prints the summary in green for readability
+      logger.info(newSummary)
     } catch (error) {
       logger.error(`❌ Failed at step ${interaction.step}: ${error}`)
       break // Stop the test if an error occurs
@@ -175,33 +238,3 @@ export async function testArabicSummarizer() {
 
 // Uncomment the line below to run the test when you execute the file
 // testArabicSummarizer()
-
-//  Starting Summarizer Test for Chat ID: test-chat-arabic-001
-
-// --- Processing Step 1 ---
-// User: مرحباً، أريد استشارة قانونية بخصوص إيجار بيت. نحن مستأجرين بيت بدون عقد مكتوب.
-// AI: أهلاً بك. تفضل، العقود الشفهية معترف بها قانونياً في العديد من الحالات إذا أمكن إثباتها. ما هي المشكلة تحديداً؟
-// ⏳ Generating new summary...
-// Successfully updated history for chat: test-chat-arabic-001
-// ✅ NEW DATABASE SUMMARY:
-// المستخدم يطلب استشارة قانونية بخصوص إيجار بيت بدون عقد مكتوب. وكان قد رفض رفضاً قاطعاً زيادة الإيجار وأخبر المؤجر أنه لن يدفع زيادة إلا بعد إكمال السنة، كما أعلمه بإجراء إصلاحات في الحوش وبناء مبانٍ إضافية على حسابه. الذكاء الاصطناعي أوضح له أن رفضه مبرر قانونياً، وأن له الحق في المطالبة بقيمة التحسينات أو خصمها من الإيجار شريطة موافقة المؤجر وعلمه بذلك، خاصة مع وجود اتفاق شفهي على إيجار طويل المدى.
-
-// --- Processing Step 2 ---
-// User: صاحب البيت بلغنا قبل شهر أنه يريد زيادة الإيجار ابتداءً من الشهر القادم، ونحن لم نكمل سنة في البيت بعد.
-// AI: عادةً، لا يحق للمؤجر زيادة القيمة الإيجارية قبل انتهاء المدة المتفق عليها (والتي تُعتبر سنة في العادة للعقود السكنية) إلا بموافقة الطرفين. هل وافقتم على هذه الزيادة؟
-// ⏳ Generating new summary...
-// Successfully updated history for chat: test-chat-arabic-001
-// ✅ NEW DATABASE SUMMARY:
-// المستخدم يستشير في إيجار بيت بدون عقد مكتوب، وقد رفض رفضاً قاطعاً زيادة الإيجار وأخبر المؤجر أنه لن يدفع زيادة إلا بعد إكمال السنة، كما أعلمه بإجراء إصلاحات في الحوش وبناء مبانٍ إضافية على حسابه. الذكاء الاصطناعي أوضح له أن رفضه مبرر قانونياً، وأن له الحق في المطالبة بقيمة التحسينات أو خصمها من الإيجار شريطة موافقة المؤجر وعلمه بذلك، خاصة مع وجود اتفاق شفهي على إيجار طويل المدى. ثم أبلغ المؤجر المستخدم قبل شهر أنه يريد زيادة الإيجار ابتداءً من الشهر القادم، علماً أنهم لم يكملوا سنة في البيت بعد. الذكاء الاصطناعي سأل المستخدم عما إذا كان وافق على هذه الزيادة.
-
-// --- Processing Step 3 ---
-// User: لا، أنا رفضت الزيادة تماماً وأخبرته أننا لن ندفع زيادة إلا بعد إكمال السنة. مع العلم أننا قمنا ببعض الإصلاحات في الحوش وبنينا مباني إضافية على حسابنا.
-// AI: رفضك في محله القانوني. بالنسبة للإصلاحات والمباني الإضافية التي قمتم بها على حسابكم، يحق لكم المطالبة بقيمتها أو خصمها من الإيجار إذا كانت تمت بموافقته وعلمه، خاصة وأنكم اتفقتم شفهياً على إيجار طويل المدى.
-// ⏳ Generating new summary...
-// Successfully updated history for chat: test-chat-arabic-001
-// ✅ NEW DATABASE SUMMARY:
-// المستخدم يستشير في إيجار بيت بدون عقد مكتوب، وقد رفض رفضاً قاطعاً زيادة الإيجار وأخبر المؤجر أنه لن يدفع زيادة إلا بعد إكمال السنة. كما أعلمه بأنه قام بإصلاحات في الحوش وبنى مبانٍ إضافية على حسابه. المؤجر أعلمه قبل شهر برغبته في زيادة الإيجار ابتداءً من الشهر القادم، علماً بأنهم لم يكملوا سنة في البيت بعد. المستخدم رفض الزيادة تماماً وأخبره بذلك. الذكاء الاصطناعي أكد أن رفضه مبرر قانونياً، وأن له الحق في المطالبة بقيمة التحسينات أو خصمها من الإيجار إذا تمت بموافقة المؤجر وعلمه بذلك، خاصة مع وجود اتفاق شفهي على إيجار طويل المدى.
-
-// 🏁 Test Complete!
-// ^C
-// ~/repos/mustashar agent !1 ?3 ❯                                                ✘ INT 47s

@@ -8,6 +8,7 @@ import {
 import { retriver as retriever } from './rag/retriver'
 import { logger } from './logger'
 
+/** Fallback model chain for the answer agent. */
 const agent_answer_fallback = modelFallbackMiddleware(
   'cerebras:qwen-3-235b-a22b-instruct-2507',
   'groq:llama-3.3-70b-versatile',
@@ -15,11 +16,19 @@ const agent_answer_fallback = modelFallbackMiddleware(
 )
 
 /**
- * Main answer pipeline:
- * - analyzes user message into standalone questions
- * - optionally retrieves legal chunks for question flows
- * - answers with the correct prompt strategy
- * - updates/stores rolling chat summary
+ * Main answer pipeline.
+ *
+ * Flow:
+ *  1. Fetch the current chat history (rolling summary + last interaction).
+ *  2. Analyse the user message to detect whether it contains a legal question.
+ *  3a. General conversation → answer directly with the conversation agent.
+ *  3b. Legal question → retrieve relevant legal chunks via RAG, then answer.
+ *  4. Persist the new interaction to history and return the final response.
+ *
+ * @param userInput - The raw user message text.
+ * @param chat_id   - Unique identifier for the chat session.
+ * @param requestId - Optional trace ID used for log correlation.
+ * @returns The AI-generated response string.
  */
 const answer = async (
   userInput: string,
@@ -29,6 +38,7 @@ const answer = async (
   const logPrefix = requestId ? `[${requestId}] ` : ''
   logger.info(`${logPrefix}Starting answer pipeline for chat_id: ${chat_id}`)
 
+  // Retrieve the combined history context (summary + last interaction).
   const history = await getHistory(chat_id)
 
   const analyzed = await analyzeUserMessage(userInput, history)
@@ -48,8 +58,9 @@ const answer = async (
       systemPrompt: ANSWER_SYSTEM_CHATTING_PROMPT,
     })
 
+    // Provide the full history context followed by the new user message.
     const messagePayload = `
-      SUMMARY:
+      CHAT HISTORY:
       ${history}
 
       USER MESSAGE:
@@ -76,9 +87,12 @@ const answer = async (
   logger.info(
     `${logPrefix}Route: Legal Question RAG. Processing ${standaloneQuestions.length} questions.`,
   )
+
+  // Fire all retrieval calls in parallel for efficiency.
   const searchPromises = standaloneQuestions.map((q) => retriever.invoke(q));
   const resultsArray = await Promise.all(searchPromises);
 
+  // Flatten results and collect chunks that have content.
   const retrievedChunks: Array<{ pageContent: string }> = [];
   resultsArray.forEach((chunks) => {
     for (const chunk of chunks || []) {
@@ -88,6 +102,7 @@ const answer = async (
     }
   })
 
+  // De-duplicate chunks by their trimmed text so the prompt isn't bloated.
   const uniqueContext = Array.from(
     new Set(retrievedChunks.map((chunk) => chunk.pageContent.trim())),
   )
@@ -107,6 +122,8 @@ const answer = async (
     systemPrompt: RAG_ANSWER_SYSTEM_PROMPT,
   })
 
+  // Build the RAG prompt: original question, standalone sub-questions,
+  // full history context, and retrieved legal chunks.
   const ragPayload = `
 ORIGINAL QUESTION:
 ${userInput}
@@ -114,7 +131,7 @@ ${userInput}
 STANDALONE QUESTIONS:
 ${standAloneQuestions}
 
-CHAT SUMMARY:
+CHAT HISTORY:
 ${history}
 
 RETRIEVED CONTEXT:

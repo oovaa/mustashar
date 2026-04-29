@@ -2,14 +2,23 @@ import { createAgent, modelFallbackMiddleware } from 'langchain'
 import { z } from 'zod'
 import { logger } from './logger'
 
-// 1. Standalone Question Agent
+// ==========================================
+// STANDALONE QUESTION ANALYZER AGENT
+// Classifies a user message and, for legal inputs, breaks it down into
+// focused standalone sub-questions that can be used for RAG retrieval.
+// ==========================================
+
+/** Fallback model chain for the standalone question analyzer. */
 const agent_stand_alone_fallback = modelFallbackMiddleware(
   'mistral:mistral-large-latest',
   'together:openai/gpt-oss-120b',
   'google-genai:gemma-3-27b-it',
 )
 
-// 1. The Schema
+/**
+ * Zod schema that describes the structured JSON response expected from the
+ * standalone question analyzer agent.
+ */
 const responseSchema = z.object({
   has_question: z
     .boolean()
@@ -28,7 +37,10 @@ const responseSchema = z.object({
     ),
 })
 
-// 2. The Strict System Prompt (Added Anti-Looping Rules)
+/**
+ * System prompt that instructs the agent to classify messages and extract
+ * concise, context-independent legal sub-questions.
+ */
 const SYSTEM_PROMPT = `You are an expert legal query analyzer. Your strict task is to classify and deconstruct user messages.
 
 1. CLASSIFY: Determine if the message contains a legal inquiry/scenario or if it is strictly general conversation. 
@@ -53,14 +65,27 @@ RULES FOR STANDALONE QUESTIONS:
 - CRITICAL: DO NOT repeat questions. DO NOT answer the questions. Your only job is extraction.
 `
 
-
+/** Pre-configured standalone-question analyzer agent with structured JSON output. */
 export const agent_stand_alone = createAgent({
   model: 'google-genai:gemini-2.5-flash',
   middleware: [agent_stand_alone_fallback],
   responseFormat: responseSchema,
   systemPrompt: SYSTEM_PROMPT,
 })
-// 3. The Reusable Function
+
+/**
+ * Analyses a user message to classify it and extract standalone legal questions.
+ *
+ * The full chat history context is included in the prompt so the agent can
+ * resolve pronouns and implicit references against prior conversation turns.
+ *
+ * @param userInput - The raw user message text.
+ * @param history   - Current chat history context (summary + last interaction).
+ *                    Defaults to an empty string when no history exists yet.
+ * @returns The agent's structured response containing `has_question`,
+ *          the original `message`, and `stand_alone_questions_array`.
+ * @throws Re-throws any agent error after logging it.
+ */
 export async function analyzeUserMessage(
   userInput: string,
   history: string = '',
@@ -80,15 +105,3 @@ export async function analyzeUserMessage(
     throw error
   }
 }
-
-// Test it out!
-// const test = await analyzeUserMessage('hi there tell me about you')
-
-// const test = await analyzeUserMessage(`
-//  انا مؤجر بيت لي تمانية شهور والعقد مدته سنة وسيد البيت قال  ازيد الايجار او طلع بقدر يطردني قبل القعد ينتهى؟`)
-
-// console.log(test.has_question ? test.stand_alone_questions_array : test.message)
-
-// [ "هل يستطيع سيد البيت طرد المستأجر قبل انتهاء مدة عقد الإيجار المتفق عليها لسنة واحدة؟",
-//   "هل يحق لسيد البيت طلب زيادة الإيجار من المستأجر خلال فترة سريان عقد الإيجار الذي مدته سنة؟"
-// ]
