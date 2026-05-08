@@ -99,12 +99,12 @@ const botService = async (req: Request, res: Response) => {
           return
         }
 
-        await sendTelegramMessage(
-          chatId,
-          'البوت متوقف للصيانة سنعود قريبا 😅',
-          requestId,
-        )
-        return
+        // await sendTelegramMessage(
+        //   chatId,
+        //   'البوت متوقف للصيانة سنعود قريبا 😅',
+        //   requestId,
+        // )
+        // return
 
         logger.info(`[${requestId}] Processing user request via answer pipeline...`)
         const finalAnswer = await answer(messageText, chatId, requestId)
