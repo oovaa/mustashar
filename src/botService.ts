@@ -4,6 +4,7 @@ import { db } from './db'
 import { userMemories } from './schema'
 import { eq } from 'drizzle-orm'
 import { logger } from './logger'
+import { updateHistory } from './history'
 
 /**
  * Tracks recently processed Telegram update_ids to prevent duplicate
@@ -13,11 +14,13 @@ import { logger } from './logger'
 const seenUpdateIds = new Set<number>()
 const MAX_SEEN_IDS = 1000
 
+
 const sendTelegramMessage = async (
   chat_id: string,
   text: string,
   requestId: string,
 ) => {
+
   const response = await fetch(
     `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
     {
@@ -47,6 +50,7 @@ const botService = async (req: Request, res: Response) => {
   const updateId: number | undefined = update.update_id
   const chat_id: string | undefined = update.message?.chat?.id?.toString() || update.chat_id
   const userText: string | undefined = update.message?.text || update.userText
+  const logPrefix = requestId ? `[${requestId}] ` : ''
 
   logger.debug(`[${requestId}] chatid: ${chat_id} message: ${userText}\n body: ${JSON.stringify({ update })}`)
 
@@ -106,6 +110,7 @@ const botService = async (req: Request, res: Response) => {
         logger.info(`[${requestId}] Processing user request via answer pipeline...`)
         const finalAnswer = await answer(messageText, chatId, requestId)
 
+
         // Log all relevant variables that reached this point for debugging
         try {
           const varsToLog = {
@@ -128,6 +133,11 @@ const botService = async (req: Request, res: Response) => {
 
         logger.debug(`[${requestId}] Sending response to Telegram...`)
         await sendTelegramMessage(chatId, finalAnswer, requestId)
+
+
+        logger.debug(`${logPrefix}Generated general response. Updating history...`)
+        await updateHistory(messageText, finalAnswer, chat_id)
+
 
         logger.info(`[${requestId}] Response sent successfully`)
       } catch (error: any) {

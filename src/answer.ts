@@ -63,8 +63,6 @@ const answer = async (
     const result = String(response.messages.at(-1)?.content ?? '').trim()
     logger.debug(`${logPrefix}agent_answer output:\n${result}`)
 
-    logger.debug(`${logPrefix}Generated general response. Updating history...`)
-    await updateHistory(userInput, result, chat_id)
     return result
   }
 
