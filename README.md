@@ -28,7 +28,7 @@
 | **REST API** | Express.js endpoints for the webhook and direct question answering |
 | **RAG System** | Semantic search over Arabic legal documents using HNSWLib + HuggingFace embeddings |
 | **Multi-LLM fallback** | Primary models with automatic fallback chains (Together AI → Groq → Cohere → Google GenAI) |
-| **Rolling Memory** | Conversation summaries stored in PostgreSQL; updated after every turn |
+| **Rolling Memory** | Conversation summaries stored in PostgreSQL; updated after the bot reply is sent |
 | **Arabic-first** | Fully optimised for Arabic legal text — MSA output enforced by system prompts |
 | **Docker** | One-command deployment via Docker Compose with a managed PostgreSQL container |
 
@@ -74,7 +74,12 @@ Conversational   Legal Question(s)
                │
                ▼
 ┌──────────────────────────────┐
-│  5. Update rolling summary   │  (Cohere → PostgreSQL upsert)
+│  5. Send Telegram reply      │  (botService.ts → Telegram API)
+└──────────────────────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│  6. Update rolling summary   │  (Cohere → PostgreSQL upsert)
 └──────────────────────────────┘
 ```
 

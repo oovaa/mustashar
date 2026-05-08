@@ -11,7 +11,7 @@ import { logger } from './logger'
 const agent_answer_fallback = modelFallbackMiddleware(
   'cerebras:qwen-3-235b-a22b-instruct-2507',
   'groq:llama-3.3-70b-versatile',
-  'together:zai-org/GLM-5.1',
+  'cohere:command-r-plus-08-2024',
 )
 
 /**
@@ -43,7 +43,7 @@ const answer = async (
   if (!has_question) {
     logger.info(`${logPrefix}Route: General Conversation`)
     const agent_answer = createAgent({
-      model: 'together:Qwen/Qwen3.5-397B-A17B',
+      model: 'cerebras:qwen-3-235b-a22b-instruct-2507',
       middleware: [agent_answer_fallback],
       systemPrompt: ANSWER_SYSTEM_CHATTING_PROMPT,
     })
@@ -63,8 +63,6 @@ const answer = async (
     const result = String(response.messages.at(-1)?.content ?? '').trim()
     logger.debug(`${logPrefix}agent_answer output:\n${result}`)
 
-    logger.debug(`${logPrefix}Generated general response. Updating history...`)
-    await updateHistory(userInput, result, chat_id)
     return result
   }
 
