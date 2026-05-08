@@ -106,6 +106,26 @@ const botService = async (req: Request, res: Response) => {
         logger.info(`[${requestId}] Processing user request via answer pipeline...`)
         const finalAnswer = await answer(messageText, chatId, requestId)
 
+        // Log all relevant variables that reached this point for debugging
+        try {
+          const varsToLog = {
+            requestId,
+            updateId,
+            chat_id,
+            chatId,
+            userText,
+            messageText,
+            finalAnswer,
+            seenUpdateIdsSize: seenUpdateIds.size,
+            MAX_SEEN_IDS,
+            // include the raw update body for full context
+            update,
+          }
+          logger.debug(`[${requestId}] Vars at checkpoint: ${JSON.stringify(varsToLog, null, 3)}`)
+        } catch (err: any) {
+          logger.error(`[${requestId}] Failed to serialize vars for logging: ${err.message || err}`)
+        }
+
         logger.debug(`[${requestId}] Sending response to Telegram...`)
         await sendTelegramMessage(chatId, finalAnswer, requestId)
 

@@ -5,7 +5,7 @@ import { logger } from './logger'
 // 1. Standalone Question Agent
 const agent_stand_alone_fallback = modelFallbackMiddleware(
   'mistral:mistral-large-latest',
-  'together:openai/gpt-oss-120b',
+  'groq:llama-3.3-70b-versatile',
   'google-genai:gemma-3-27b-it',
 )
 
