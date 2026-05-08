@@ -42,6 +42,10 @@ const botService = async (req: Request, res: Response) => {
   const requestId = Math.random().toString(36).substring(7);
   logger.info(`[${requestId}] Webhook request received`);
 
+  // Telegram only needs an ACK for webhook delivery.
+  res.status(200).send('OK')
+
+
   const update = req.body
   const updateId: number | undefined = update.update_id
   const chat_id: string | undefined = update.message?.chat?.id?.toString() || update.chat_id
@@ -95,12 +99,12 @@ const botService = async (req: Request, res: Response) => {
           return
         }
 
-        await sendTelegramMessage(
-          chatId,
-          'البوت متوقف للصيانة سنعود قريبا 😅',
-          requestId,
-        )
-        return
+        // await sendTelegramMessage(
+        //   chatId,
+        //   'البوت متوقف للصيانة سنعود قريبا 😅',
+        //   requestId,
+        // )
+        // return
 
         logger.info(`[${requestId}] Processing user request via answer pipeline...`)
         const finalAnswer = await answer(messageText, chatId, requestId)
