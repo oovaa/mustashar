@@ -42,9 +42,6 @@ const botService = async (req: Request, res: Response) => {
   const requestId = Math.random().toString(36).substring(7);
   logger.info(`[${requestId}] Webhook request received`);
 
-  // Telegram only needs an ACK for webhook delivery.
-  res.status(200).send('OK')
-
 
   const update = req.body
   const updateId: number | undefined = update.update_id
