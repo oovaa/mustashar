@@ -126,11 +126,15 @@ answer.ts  [Step 4: Generate]
   • Both use modelFallbackMiddleware for resilience
           │
           ▼
-answer.ts  [Step 5: Update memory]
+botService.ts  [Step 5: Send response]
+  • sendTelegramMessage(chatId, finalAnswer, requestId)
+          │
+          ▼
+answer.ts / history.ts  [Step 6: Update memory after send]
   • updateHistory(userInput, result, chat_id)
     └─► history.ts
          • Summariser agent (Cohere command-a-03-2025)
-         • UPSERT summary into user_memories
+         • UPSERT updated rolling summary into user_memories
           │
           ▼
 botService.ts
@@ -210,7 +214,7 @@ Output schema (Zod):
 Manages the rolling conversation summary stored in PostgreSQL.
 
 - **`getHistory(chat_id)`** — fetches the current summary (returns `"No history found"` if none exists).
-- **`updateHistory(message, response, chat_id)`** — generates a new summary by passing the old summary + latest exchange to the summariser agent (Cohere command-a-03-2025), then upserts it and increments the message counter.
+- **`updateHistory(message, response, chat_id)`** — called after the bot reply is sent; generates a new summary by passing the old summary + latest exchange to the summariser agent (Cohere command-a-03-2025), then upserts it and increments the message counter.
 
 The summariser agent is instructed to:
 - Produce a **monolingual** summary matching the user's language.
@@ -286,11 +290,15 @@ All agents are created with LangChain's `createAgent()` and protected by `modelF
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `chat_id` | `TEXT` | PRIMARY KEY | Telegram chat ID (as string) |
-| `summary` | `TEXT` | NOT NULL, default `'No history found'` | Rolling conversation summary |
-| `count` | `INTEGER` | default `0` | Total messages from this user |
-| `updated_at` | `TIMESTAMP` | NOT NULL, default `NOW()` | Last update time |
+| `summary` | `TEXT` | NOT NULL, default `'No history found'` | Rolling conversation summary — condensed by Cohere summarizer agent on each message |
+| `count` | `INTEGER` | default `0` | Total message count from this user (incremented on each update) |
+| `updated_at` | `TIMESTAMP` | NOT NULL, default `NOW()` | Last update timestamp (auto-set on insert/update) |
 
-The table is upserted (INSERT … ON CONFLICT DO UPDATE) on every `updateHistory()` call.
+**How it works:**
+1. On each new user message, `updateHistory()` is called with the user input and bot response.
+2. The summarizer agent (Cohere `command-a-03-2025`) processes: old summary + new message + new response → condensed summary.
+3. The entire `summary` field is replaced with this condensed version via UPSERT (INSERT … ON CONFLICT DO UPDATE).
+4. This keeps the stored history memory-efficient while preserving key facts, dates, and legal scenarios.
 
 ---
 
