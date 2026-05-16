@@ -72,7 +72,7 @@ const botService = async (req: Request, res: Response) => {
 
   if (!chat_id) {
     logger.warn(`[${requestId}] Missing chat_id.`);
-    return res.status(200).send({ message: 'chat id is required' })
+    return res.status(200).send({ message: 'chat id is required' });
   }
 
   const chatId = chat_id
@@ -96,7 +96,7 @@ const botService = async (req: Request, res: Response) => {
         }
 
         // Handle /clear command
-        if (userText === '/clear') {
+        if (messageText === '/clear') {
           logger.info(`[${requestId}] user requested history clear`)
           await db
             .update(userMemories)
