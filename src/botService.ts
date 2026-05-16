@@ -89,7 +89,7 @@ const botService = async (req: Request, res: Response) => {
           logger.info(`[${requestId}] Empty or non-text message received`)
           await sendTelegramMessage(
             chatId,
-            'يرجى إرسال رسائل نصية فقط. هذا البوت يدعم الرسائل النصية فقط.',
+            'يرجى إرسال رسائل نصية فقط.',
             requestId,
           )
           return
