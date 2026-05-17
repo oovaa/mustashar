@@ -70,13 +70,14 @@ const botService = async (req: Request, res: Response) => {
     }
   }
 
-  if (!chat_id || !userText) {
-    logger.warn(`[${requestId}] Missing chat_id or userText.`);
-    return res.status(200).send({ message: "chat id and message are required" });
+  if (!chat_id) {
+    logger.warn(`[${requestId}] Missing chat_id.`);
+    return res.status(200).send({ message: 'chat id is required' });
   }
 
   const chatId = chat_id
-  const messageText = userText
+  const messageText = userText ?? ''
+  const isEmptyMessage = messageText.trim().length === 0
 
   // Acknowledge the webhook immediately so Telegram does not retry this update.
   res.status(200).send({ message: 'ok' })
@@ -84,8 +85,18 @@ const botService = async (req: Request, res: Response) => {
     // Process the message asynchronously after responding.
     ; (async () => {
       try {
+        if (isEmptyMessage) {
+          logger.info(`[${requestId}] Empty or non-text message received`)
+          await sendTelegramMessage(
+            chatId,
+            'يرجى إرسال رسائل نصية فقط.',
+            requestId,
+          )
+          return
+        }
+
         // Handle /clear command
-        if (userText === '/clear') {
+        if (messageText === '/clear') {
           logger.info(`[${requestId}] user requested history clear`)
           await db
             .update(userMemories)
