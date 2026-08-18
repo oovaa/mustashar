@@ -27,7 +27,7 @@
 | **Telegram Bot** | Interactive chatbot for legal questions with per-user conversation memory |
 | **REST API** | Express.js endpoints for the webhook and direct question answering |
 | **RAG System** | Semantic search over Arabic legal documents using HNSWLib + HuggingFace embeddings |
-| **Multi-LLM fallback** | Primary models with automatic fallback chains (Together AI → Groq → Cohere → Google GenAI) |
+| **Multi-LLM fallback** | Primary models with automatic fallback chains (Cerebras → Groq → Cohere) |
 | **Rolling Memory** | Conversation summaries stored in PostgreSQL; updated after the bot reply is sent |
 | **Arabic-first** | Fully optimised for Arabic legal text — MSA output enforced by system prompts |
 | **Docker** | One-command deployment via Docker Compose with a managed PostgreSQL container |
@@ -50,7 +50,7 @@ User message
 ┌─────────────────────────────┐
 │  2. Classify & decompose    │  (src/stand_alone.ts → Gemini 2.5 Flash)
 │     • conversational?       │
-│     • 1-5 standalone Qs?    │
+│     • 3-5 standalone Qs?    │
 └────────────┬────────────────┘
              │
      ┌───────┴───────┐
@@ -59,27 +59,28 @@ User message
 Conversational   Legal Question(s)
      │               │
      │               ▼
-     │     ┌──────────────────────┐
-     │     │ 3. RAG retrieval     │  (src/rag/retriver.ts → HNSWLib)
-     │     │    per question,     │
-     │     │    de-duplicate      │
-     │     └──────────┬───────────┘
-     │                │
-     ▼                ▼
+     │     ┌────────────────────┐
+     │     │ 3. RAG retrieval   │  (src/rag/retriver.ts → HNSWLib)
+     │     │   per question,    │
+     │     │   de-duplicate,    │
+     │     │   truncate context │  (src/utils/tokenCounter.ts)
+     │     └─────────┬──────────┘
+     │               │
+     ▼               ▼
 ┌──────────────────────────────┐
-│  4. Generate answer          │  (LLM with system prompt)
-│  • Chat prompt (no RAG)      │
-│  • RAG prompt (with context) │
+│  4. Generate answer          │  (src/answer.ts → LLM agents)
+│     • chat: agent_answer     │  (Cerebras → Groq → Cohere)
+│     • legal: ragAnswerAgent  │
 └──────────────┬───────────────┘
                │
                ▼
 ┌──────────────────────────────┐
-│  5. Send Telegram reply      │  (botService.ts → Telegram API)
-└──────────────────────────────┘
+│  5. Send Telegram reply      │  (src/botService.ts → Telegram API)
+└──────────────┬───────────────┘
                │
                ▼
 ┌──────────────────────────────┐
-│  6. Update rolling summary   │  (Cohere → PostgreSQL upsert)
+│  6. Update rolling summary   │  (src/history.ts → Cohere summarizer)
 └──────────────────────────────┘
 ```
 
@@ -89,17 +90,26 @@ Conversational   Legal Question(s)
 
 | Layer | Technology |
 |---|---|
-| **Bot interface** | Telegram Bot API |
+| **Bot interface** | Telegram Bot API (long polling) |
 | **Web framework** | Express.js 5 + TypeScript (Bun runtime) |
 | **Answer agents** | LangChain `createAgent` + `modelFallbackMiddleware` |
-| **Primary LLMs** | Together AI (Qwen3.5-397B), Groq (Llama-3.3-70b), Cohere (command-a-03-2025), Gemini 2.5 Flash |
+| **Primary LLMs** | Cerebras (Qwen 3-235B), Groq (Llama-3.3-70b), Cohere (command-a-03-2025), Gemini 2.5 Flash |
 | **Embeddings** | HuggingFace Inference API — `BAAI/bge-m3` |
-| **Vector store** | HNSWLib (file-based, loaded into memory) |
+| **Vector store** | HNSWLib (file-based, lazy-loaded into memory) |
 | **Database** | PostgreSQL via Drizzle ORM |
 | **Logging** | Winston + daily-rotate-file |
 | **Containerisation** | Docker & Docker Compose |
 
 For a deeper dive see [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md).
+
+Every agent runs with an automatic fallback chain — if the primary provider fails, the next one in the list is tried:
+
+| Agent (file) | Primary model | Fallback chain |
+|---|---|---|
+| `agent_stand_alone` (`src/stand_alone.ts`) | Google Gemini 2.5 Flash | Mistral Large → Groq Llama-3.3-70b → Google Gemma-4-31b |
+| `agent_answer` (`src/answer.ts`) | Cerebras Qwen 3-235B | Groq Llama-3.3-70b → Cohere command-r-plus |
+| `ragAnswerAgent` (`src/answer.ts`) | Groq Llama-3.3-70b | Cerebras Qwen 3-235B → Cohere command-r-plus |
+| `agent_summrize` (`src/history.ts`) | Cohere command-a-03-2025 | Cerebras Qwen 3-235B → Groq GPT-OSS-120b → Cohere command-r-plus |
 
 ---
 
@@ -122,24 +132,33 @@ bun install
 Create a `.env` file at the project root:
 
 ```env
-# Telegram
+# Telegram (required)
 BOT_TOKEN=your_telegram_bot_token
 
 # LLM providers
+CEREBRAS_API_KEY=your_cerebras_api_key
 GROQ_API_KEY=your_groq_api_key
-TOGETHER_API_KEY=your_together_ai_key
 COHERE_API_KEY=your_cohere_api_key
 GOOGLE_API_KEY=your_google_genai_key
+MISTRAL_API_KEY=your_mistral_api_key
 
-# Embeddings
+# Embeddings (required)
 HF_API_KEY=your_huggingface_api_key
 
-# Database
+# Database (required)
 DATABASE_URL=postgresql://user:password@localhost:5432/mustashar_db
+
+# Database SSL (optional, default: false)
+DATABASE_SSL=false
 
 # Logging (optional, default: info)
 LOG_LEVEL=info
+
+# Polling mode (true = long polling, no webhook/tunnel needed)
+POLLING=true
 ```
+
+> **Note:** The app fails to start if any required variable is missing. `BOT_TOKEN`, `DATABASE_URL`, `HF_API_KEY`, `GROQ_API_KEY` and `COHERE_API_KEY` are mandatory; the remaining LLM keys are used by the model fallback chains, so set them to keep every provider path available.
 
 > **Tip:** When deploying with Docker Compose the `DATABASE_URL` is injected automatically; you do not need to set it in `.env`.
 
@@ -208,12 +227,12 @@ bun run db:generate
 ### Docker (recommended)
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
-This starts both the application and a PostgreSQL container. The app is available at `http://localhost:3000`.
+This starts both the application and a PostgreSQL container. The bot uses long polling (no webhook or tunnel needed). The app is available at `http://localhost:3000`.
 
-The vector database files in `./src/rag/vdb` are bind-mounted into the container so the index persists across container restarts.
+The vector database files in `./vdb` are bind-mounted into the container so the index persists across container restarts.
 
 For a detailed deployment guide see [`doc/DEPLOYMENT.md`](doc/DEPLOYMENT.md).
 

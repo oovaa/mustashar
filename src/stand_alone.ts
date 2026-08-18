@@ -60,7 +60,10 @@ export const agent_stand_alone = createAgent({
   responseFormat: responseSchema,
   systemPrompt: SYSTEM_PROMPT,
 })
-// 3. The Reusable Function
+/**
+ * Classifies a user message and extracts standalone legal questions.
+ * Returns { has_question, message, stand_alone_questions_array }.
+ */
 export async function analyzeUserMessage(
   userInput: string,
   history: string = '',

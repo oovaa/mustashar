@@ -49,6 +49,7 @@ export const agent_summrize = createAgent({
 // DATABASE MEMORY FUNCTIONS
 // ==========================================
 
+/** Fetches the rolling conversation summary for a given chat. Returns 'No history found' if none exists. */
 export const getHistory = async (chat_id: string) => {
   logger.debug(`Fetching history for chat_id: ${chat_id}`)
   try {
@@ -65,6 +66,7 @@ export const getHistory = async (chat_id: string) => {
   }
 }
 
+/** Generates a new rolling summary by combining old history with the latest exchange, then upserts it. */
 export const updateHistory = async (
   message: string,
   response: string,
@@ -121,87 +123,3 @@ export const updateHistory = async (
   }
 }
 
-// ==========================================
-// TEST FUNCTION
-// ==========================================
-
-export async function testArabicSummarizer() {
-  const testChatId = 'test-chat-arabic-001'
-
-  logger.info(`\n🚀 Starting Summarizer Test for Chat ID: ${testChatId}\n`)
-
-  // Simulated conversation history (Array of interactions)
-  const dummyInteractions = [
-    {
-      step: 1,
-      user: 'مرحباً، أريد استشارة قانونية بخصوص إيجار بيت. نحن مستأجرين بيت بدون عقد مكتوب.',
-      ai: 'أهلاً بك. تفضل، العقود الشفهية معترف بها قانونياً في العديد من الحالات إذا أمكن إثباتها. ما هي المشكلة تحديداً؟',
-    },
-    {
-      step: 2,
-      user: 'صاحب البيت بلغنا قبل شهر أنه يريد زيادة الإيجار ابتداءً من الشهر القادم، ونحن لم نكمل سنة في البيت بعد.',
-      ai: 'عادةً، لا يحق للمؤجر زيادة القيمة الإيجارية قبل انتهاء المدة المتفق عليها (والتي تُعتبر سنة في العادة للعقود السكنية) إلا بموافقة الطرفين. هل وافقتم على هذه الزيادة؟',
-    },
-    {
-      step: 3,
-      user: 'لا، أنا رفضت الزيادة تماماً وأخبرته أننا لن ندفع زيادة إلا بعد إكمال السنة. مع العلم أننا قمنا ببعض الإصلاحات في الحوش وبنينا مباني إضافية على حسابنا.',
-      ai: 'رفضك في محله القانوني. بالنسبة للإصلاحات والمباني الإضافية التي قمتم بها على حسابكم، يحق لكم المطالبة بقيمتها أو خصمها من الإيجار إذا كانت تمت بموافقته وعلمه، خاصة وأنكم اتفقتم شفهياً على إيجار طويل المدى.',
-    },
-  ]
-
-  for (const interaction of dummyInteractions) {
-    logger.info(`--- Processing Step ${interaction.step} ---`)
-    logger.info(`User: ${interaction.user}`)
-    logger.info(`AI: ${interaction.ai}`)
-    logger.info(`⏳ Generating new summary...`)
-
-    try {
-      const newSummary = await updateHistory(
-        interaction.user,
-        interaction.ai,
-        testChatId,
-      )
-
-      logger.info(`✅ NEW DATABASE SUMMARY:`)
-      logger.info(newSummary) // Prints the summary in green for readability
-    } catch (error) {
-      logger.error(`❌ Failed at step ${interaction.step}: ${error}`)
-      break // Stop the test if an error occurs
-    }
-  }
-
-  logger.info(`\n🏁 Test Complete!`)
-}
-
-// Uncomment the line below to run the test when you execute the file
-// testArabicSummarizer()
-
-//  Starting Summarizer Test for Chat ID: test-chat-arabic-001
-
-// --- Processing Step 1 ---
-// User: مرحباً، أريد استشارة قانونية بخصوص إيجار بيت. نحن مستأجرين بيت بدون عقد مكتوب.
-// AI: أهلاً بك. تفضل، العقود الشفهية معترف بها قانونياً في العديد من الحالات إذا أمكن إثباتها. ما هي المشكلة تحديداً؟
-// ⏳ Generating new summary...
-// Successfully updated history for chat: test-chat-arabic-001
-// ✅ NEW DATABASE SUMMARY:
-// المستخدم يطلب استشارة قانونية بخصوص إيجار بيت بدون عقد مكتوب. وكان قد رفض رفضاً قاطعاً زيادة الإيجار وأخبر المؤجر أنه لن يدفع زيادة إلا بعد إكمال السنة، كما أعلمه بإجراء إصلاحات في الحوش وبناء مبانٍ إضافية على حسابه. الذكاء الاصطناعي أوضح له أن رفضه مبرر قانونياً، وأن له الحق في المطالبة بقيمة التحسينات أو خصمها من الإيجار شريطة موافقة المؤجر وعلمه بذلك، خاصة مع وجود اتفاق شفهي على إيجار طويل المدى.
-
-// --- Processing Step 2 ---
-// User: صاحب البيت بلغنا قبل شهر أنه يريد زيادة الإيجار ابتداءً من الشهر القادم، ونحن لم نكمل سنة في البيت بعد.
-// AI: عادةً، لا يحق للمؤجر زيادة القيمة الإيجارية قبل انتهاء المدة المتفق عليها (والتي تُعتبر سنة في العادة للعقود السكنية) إلا بموافقة الطرفين. هل وافقتم على هذه الزيادة؟
-// ⏳ Generating new summary...
-// Successfully updated history for chat: test-chat-arabic-001
-// ✅ NEW DATABASE SUMMARY:
-// المستخدم يستشير في إيجار بيت بدون عقد مكتوب، وقد رفض رفضاً قاطعاً زيادة الإيجار وأخبر المؤجر أنه لن يدفع زيادة إلا بعد إكمال السنة، كما أعلمه بإجراء إصلاحات في الحوش وبناء مبانٍ إضافية على حسابه. الذكاء الاصطناعي أوضح له أن رفضه مبرر قانونياً، وأن له الحق في المطالبة بقيمة التحسينات أو خصمها من الإيجار شريطة موافقة المؤجر وعلمه بذلك، خاصة مع وجود اتفاق شفهي على إيجار طويل المدى. ثم أبلغ المؤجر المستخدم قبل شهر أنه يريد زيادة الإيجار ابتداءً من الشهر القادم، علماً أنهم لم يكملوا سنة في البيت بعد. الذكاء الاصطناعي سأل المستخدم عما إذا كان وافق على هذه الزيادة.
-
-// --- Processing Step 3 ---
-// User: لا، أنا رفضت الزيادة تماماً وأخبرته أننا لن ندفع زيادة إلا بعد إكمال السنة. مع العلم أننا قمنا ببعض الإصلاحات في الحوش وبنينا مباني إضافية على حسابنا.
-// AI: رفضك في محله القانوني. بالنسبة للإصلاحات والمباني الإضافية التي قمتم بها على حسابكم، يحق لكم المطالبة بقيمتها أو خصمها من الإيجار إذا كانت تمت بموافقته وعلمه، خاصة وأنكم اتفقتم شفهياً على إيجار طويل المدى.
-// ⏳ Generating new summary...
-// Successfully updated history for chat: test-chat-arabic-001
-// ✅ NEW DATABASE SUMMARY:
-// المستخدم يستشير في إيجار بيت بدون عقد مكتوب، وقد رفض رفضاً قاطعاً زيادة الإيجار وأخبر المؤجر أنه لن يدفع زيادة إلا بعد إكمال السنة. كما أعلمه بأنه قام بإصلاحات في الحوش وبنى مبانٍ إضافية على حسابه. المؤجر أعلمه قبل شهر برغبته في زيادة الإيجار ابتداءً من الشهر القادم، علماً بأنهم لم يكملوا سنة في البيت بعد. المستخدم رفض الزيادة تماماً وأخبره بذلك. الذكاء الاصطناعي أكد أن رفضه مبرر قانونياً، وأن له الحق في المطالبة بقيمة التحسينات أو خصمها من الإيجار إذا تمت بموافقة المؤجر وعلمه بذلك، خاصة مع وجود اتفاق شفهي على إيجار طويل المدى.
-
-// 🏁 Test Complete!
-// ^C
-// ~/repos/mustashar agent !1 ?3 ❯                                                ✘ INT 47s

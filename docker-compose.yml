@@ -16,8 +16,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
-    # DO NOT map 5432 to host ports. 
-    # This keeps the DB invisible to the internet.
     networks:
       - bot-network
 
@@ -26,10 +24,14 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    expose:
+      - "3000"
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgres://mustashar_admin:somepass@db:5432/mustashar_db
+      - NODE_ENV=production
+      - POLLING=true
     depends_on:
       db:
         condition: service_healthy
@@ -43,9 +45,7 @@ services:
     networks:
       - bot-network
     volumes:
-      # Keep your Vector DB files persistent on the VPS
-      - ./src/rag/vdb:/app/src/rag/vdb
-
+      - ./vdb:/app/vdb
 
 networks:
   bot-network:

@@ -1,18 +1,32 @@
 import { createAgent, modelFallbackMiddleware } from 'langchain'
-import { getHistory, updateHistory } from './history'
+import { getHistory } from './history'
 import { analyzeUserMessage } from './stand_alone'
 import {
   ANSWER_SYSTEM_CHATTING_PROMPT,
   RAG_ANSWER_SYSTEM_PROMPT,
 } from './answerPrompts'
-import { retriver as retriever } from './rag/retriver'
+import { getRetriever } from './rag/retriver'
 import { logger } from './logger'
+import { Document } from '@langchain/core/documents'
+import { truncateToTokenLimit } from './utils/tokenCounter'
 
 const agent_answer_fallback = modelFallbackMiddleware(
   'cerebras:qwen-3-235b-a22b-instruct-2507',
   'groq:llama-3.3-70b-versatile',
   'cohere:command-r-plus-08-2024',
 )
+
+const agent_answer = createAgent({
+  model: 'cerebras:qwen-3-235b-a22b-instruct-2507',
+  middleware: [agent_answer_fallback],
+  systemPrompt: ANSWER_SYSTEM_CHATTING_PROMPT,
+})
+
+const ragAnswerAgent = createAgent({
+  model: 'groq:llama-3.3-70b-versatile',
+  middleware: [agent_answer_fallback],
+  systemPrompt: RAG_ANSWER_SYSTEM_PROMPT,
+})
 
 /**
  * Main answer pipeline:
@@ -42,11 +56,6 @@ const answer = async (
 
   if (!has_question) {
     logger.info(`${logPrefix}Route: General Conversation`)
-    const agent_answer = createAgent({
-      model: 'cerebras:qwen-3-235b-a22b-instruct-2507',
-      middleware: [agent_answer_fallback],
-      systemPrompt: ANSWER_SYSTEM_CHATTING_PROMPT,
-    })
 
     const messagePayload = `
       SUMMARY:
@@ -74,8 +83,15 @@ const answer = async (
   logger.info(
     `${logPrefix}Route: Legal Question RAG. Processing ${standaloneQuestions.length} questions.`,
   )
-  const searchPromises = standaloneQuestions.map((q) => retriever.invoke(q));
-  const resultsArray = await Promise.all(searchPromises);
+  const retriever = await getRetriever()
+  let resultsArray: Document[][] = []
+  if (!retriever) {
+    logger.warn(`${logPrefix}RAG retriever not available, skipping retrieval`)
+    resultsArray = standaloneQuestions.map(() => []);
+  } else {
+    const searchPromises = standaloneQuestions.map((q) => retriever.invoke(q));
+    resultsArray = await Promise.all(searchPromises);
+  }
 
   const retrievedChunks: Array<{ pageContent: string }> = [];
   resultsArray.forEach((chunks) => {
@@ -94,16 +110,13 @@ const answer = async (
 
   logger.debug(`uniqueContext: ${uniqueContext}`)
 
+  const MAX_CONTEXT_TOKENS = 6000 // Leave room for prompt and response
+  const truncatedContext = truncateToTokenLimit(uniqueContext, MAX_CONTEXT_TOKENS, true)
+
   const standAloneQuestions =
     standaloneQuestions.length > 0
       ? standaloneQuestions.map((question) => `- ${question}`).join('\n')
       : '- لا توجد أسئلة قانونية مستقلة.'
-
-  const ragAnswerAgent = createAgent({
-    model: 'groq:llama-3.3-70b-versatile',
-    middleware: [agent_answer_fallback],
-    systemPrompt: RAG_ANSWER_SYSTEM_PROMPT,
-  })
 
   const ragPayload = `
 ORIGINAL QUESTION:
@@ -116,7 +129,7 @@ CHAT SUMMARY:
 ${history}
 
 RETRIEVED CONTEXT:
-${uniqueContext || 'No legal context retrieved.'}
+${truncatedContext || 'No legal context retrieved.'}
   `
 
   logger.debug(
@@ -125,9 +138,6 @@ ${uniqueContext || 'No legal context retrieved.'}
   const ragResponse = await ragAnswerAgent.invoke({ messages: ragPayload })
   const ragResult = String(ragResponse.messages.at(-1)?.content ?? '').trim()
   logger.debug(`${logPrefix}ragResult output:\n${ragResult}`)
-
-  logger.info(`${logPrefix}RAG Answer generated. Updating history...`)
-  await updateHistory(userInput, ragResult, chat_id)
 
   return ragResult
 }
