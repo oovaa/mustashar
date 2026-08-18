@@ -69,11 +69,14 @@ mustashar/
 │   ├── db.ts               # Drizzle + postgres-js connection
 │   ├── schema.ts           # Drizzle table definitions
 │   ├── logger.ts           # Winston logger configuration
+│   └── utils/
+│       ├── config.ts       # Environment variable validation
+│       └── tokenCounter.ts # Token estimation & context truncation
 │   └── rag/
 │       ├── chunker.ts      # Document loader & text splitter
 │       ├── embeddings.ts   # HuggingFace embedding config
 │       ├── vdb.ts          # One-time index builder script
-│       └── retriver.ts     # HNSWLib retriever (runtime)
+│       └── retriver.ts     # HNSWLib retriever (lazy-loaded, runtime)
 ├── vdb/                    # Generated vector database files
 ├── docs/                   # Source Arabic legal documents (gitignored)
 ├── doc/                    # Project documentation
@@ -116,13 +119,14 @@ answer.ts  [Step 2: Classify]
     │       answer.ts  [Step 3: RAG retrieval]
     │         • For each standalone question:
     │           retriver.invoke(question)
-    │             └─► HNSWLib ANN search (k=10)
+    │             └─► HNSWLib lazy-loaded ANN search (k=3)
     │         • Merge + de-duplicate chunks
+    │         • Truncate to 6000 tokens
     │            │
     ▼            ▼
 answer.ts  [Step 4: Generate]
-  • has_question=false → chatAgent (Qwen3.5-397B, ANSWER_SYSTEM_CHATTING_PROMPT)
-  • has_question=true  → ragAnswerAgent (Llama-3.3-70b, RAG_ANSWER_SYSTEM_PROMPT)
+  • has_question=false → agent_answer (Cerebras Qwen 3-235B, ANSWER_SYSTEM_CHATTING_PROMPT)
+  • has_question=true  → ragAnswerAgent (Groq Llama-3.3-70b, RAG_ANSWER_SYSTEM_PROMPT)
   • Both use modelFallbackMiddleware for resilience
           │
           ▼
@@ -130,7 +134,7 @@ botService.ts  [Step 5: Send response]
   • sendTelegramMessage(chatId, finalAnswer, requestId)
           │
           ▼
-answer.ts / history.ts  [Step 6: Update memory after send]
+botService.ts  [Step 6: Update memory after send]
   • updateHistory(userInput, result, chat_id)
     └─► history.ts
          • Summariser agent (Cohere command-a-03-2025)
@@ -183,11 +187,15 @@ The central orchestrator. Called by both `botService` (Telegram) and the `/answe
 Steps (in order):
 1. Load conversation summary via `getHistory()`.
 2. Classify + decompose the message via `analyzeUserMessage()`.
-3. **Conversational path**: invoke `chatAgent` with history-aware prompt.
-4. **Legal path**: retrieve RAG chunks for each standalone question, merge context, invoke `ragAnswerAgent`.
+3. **Conversational path**: invoke `agent_answer` with history-aware prompt.
+4. **Legal path**: retrieve RAG chunks for each standalone question, merge context, truncate to 6000 tokens, invoke `ragAnswerAgent`.
 5. Update rolling summary via `updateHistory()`.
 
-Both agents are created with `createAgent()` + `modelFallbackMiddleware()` for automatic failover.
+Both agents are created as module-level singletons with `createAgent()` + `modelFallbackMiddleware()` for automatic failover.
+
+Key design decisions:
+- **Lazy-loaded retriever**: HNSWLib index is loaded on first query, not at startup. If loading fails, RAG is gracefully disabled (chat-only mode).
+- **Context window management**: Retrieved context is truncated to 6000 tokens using character-based estimation to prevent LLM context overflow.
 
 ---
 
@@ -245,7 +253,7 @@ See [`RAG.md`](../RAG.md) for the full RAG documentation.
 | `chunker.ts` | Load + split legal documents |
 | `embeddings.ts` | `BAAI/bge-m3` via HuggingFace Inference |
 | `vdb.ts` | One-time index builder |
-| `retriver.ts` | Runtime retriever (k=10, loaded at startup) |
+| `retriver.ts` | Lazy-loaded HNSWLib retriever (k=3, loads on first query, graceful degradation) |
 
 ---
 
@@ -270,16 +278,43 @@ Log level defaults to `info` and can be overridden via the `LOG_LEVEL` environme
 
 ---
 
+### Environment Validation — `src/utils/config.ts`
+
+`validateEnvironment()` is called at startup (in `src/index.ts`) and checks that the following required environment variables are set:
+
+| Variable | Purpose |
+|---|---|
+| `BOT_TOKEN` | Telegram Bot API authentication |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `HF_API_KEY` | HuggingFace Inference API for embeddings |
+| `GROQ_API_KEY` | Groq LLM provider |
+| `COHERE_API_KEY` | Cohere LLM provider |
+
+If any are missing, the server throws immediately with a clear error message listing the missing variables.
+
+---
+
+### Token Counter — `src/utils/tokenCounter.ts`
+
+Provides character-based token estimation for context window management:
+
+- **`estimateTokens(text, isArabic)`** — estimates token count (4 chars/token English, 2 chars/token Arabic).
+- **`truncateToTokenLimit(text, maxTokens, isArabic)`** — truncates text to fit within the token limit, appending `"... [truncated]"`.
+
+Used by the answer pipeline to cap RAG context at 6000 tokens before passing to the LLM.
+
+---
+
 ## LLM Agents and Fallback Strategy
 
 All agents are created with LangChain's `createAgent()` and protected by `modelFallbackMiddleware()`. If the primary model fails (rate-limit, outage, etc.) the next model in the chain is tried automatically.
 
 | Agent | Primary Model | Fallbacks |
 |---|---|---|
-| **Chat answer** | `together:Qwen/Qwen3.5-397B-A17B` | `together:moonshotai/Kimi-K2.5` → `groq:llama-3.3-70b-versatile` → `together:zai-org/GLM-5` |
+| **Chat answer** | `cerebras:qwen-3-235b-a22b-instruct-2507` | `groq:llama-3.3-70b-versatile` → `cohere:command-r-plus-08-2024` |
 | **RAG answer** | `groq:llama-3.3-70b-versatile` | (shared fallback middleware above) |
-| **Classifier** | `google-genai:gemini-2.5-flash` | `google-genai:gemma-3-27b-it` → `groq:llama-3.1-8b-instant` → `together:openai/gpt-oss-120b` |
-| **Summariser** | `cohere:command-a-03-2025` | `together:MiniMaxAI/MiniMax-M2.5` → `groq:openai/gpt-oss-120b` → `cohere:command-r-plus-08-2024` |
+| **Classifier** | `google-genai:gemini-2.5-flash` | `mistral:mistral-large-latest` → `groq:llama-3.3-70b-versatile` → `google-genai:gemma-4-31b-it` |
+| **Summariser** | `cohere:command-a-03-2025` | `cerebras:qwen-3-235b-a22b-instruct-2507` → `groq:openai/gpt-oss-120b` → `cohere:command-r-plus-08-2024` |
 
 ---
 
@@ -323,10 +358,11 @@ FROM oven/bun:latest
 RUN apt-get update && apt-get install -y build-essential python3 make g++
 WORKDIR /app
 COPY package.json ./
+COPY bun.lock ./
 RUN bun install
 COPY . .
 EXPOSE 3000
 CMD ["bun", "start"]
 ```
 
-`build-essential`, `python3`, `make`, and `g++` are required to compile the native `hnswlib-node` bindings.
+`build-essential`, `python3`, `make`, and `g++` are required to compile the native `hnswlib-node` bindings. `bun.lock` is copied before install for reproducible builds.

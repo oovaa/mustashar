@@ -6,6 +6,7 @@ import { TextLoader } from '@langchain/classic/document_loaders/fs/text'
 import { Document } from '@langchain/core/documents'
 import { logger } from '../logger'
 
+/** Loads all PDF and text documents from a folder, chunks them with overlap, and returns Document arrays. */
 export async function loadDocsFromFolder(
   folderPath: string = './docs',
 ): Promise<Document[]> {
@@ -74,7 +75,7 @@ export async function loadDocsFromFolder(
   return docs
 }
 
-// Helper: Recursively find files by extensions
+/** Recursively walks a directory and returns all files matching one of the given extensions. */
 async function findFiles(dir: string, extensions: string[]): Promise<string[]> {
   const files: string[] = []
 

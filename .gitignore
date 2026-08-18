@@ -37,4 +37,7 @@ docs/*
 drizzle
 
 bun.lock
-test.ts
+test.tsfindings.md
+task_plan.md
+progress.md
+findings.md
